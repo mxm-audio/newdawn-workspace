@@ -32,14 +32,17 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `instruments/<name>/` (11), `effects/<name>/` (9) | One repository per product | `mxm-audio/<name>`, GPL-3.0 |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
-| `ops/` | The owner's split, publishing and move scripts | local and private |
+| `ops/` | The owner's split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
 | `collection-tests/` | Tests across every product, waiting for this workspace's test package | this workspace |
 | `archive/` | The private monorepo and research repository, with their worktrees; read-only | private |
 | `projects/` | The owner's song projects | not in git |
 | `rust/` | `RUSTUP_HOME` and `CARGO_HOME` | not in git |
 
-The folder is itself a git repository, the workspace, which ignores every repository inside it.
+The folder is itself a git repository, the workspace (`mxm-audio/newdawn-workspace`, public, MIT),
+which ignores every repository inside it. `repos.txt` lists them all, and `python ws.py clone`
+brings the missing ones to a new machine: add a new repository there. Nothing private goes in the
+workspace's own files; it is public.
 
 ## Working across repositories
 
@@ -48,7 +51,7 @@ repo gets tired real soon"). Start sessions here. Use `python ws.py` (or `.\ws` 
 step that repeats across repositories, rather than a loop by hand:
 
 - `status`: one row per repository (changed files, unpushed and behind, latest tag, kit and player
-  pins). Start here.
+  pins). Start here. `clone` fetches any repository in `repos.txt` that isn't here.
 - `check [--linux]`: fmt, clippy `-D warnings` and `cargo test`, only in repositories with
   uncommitted or unpushed work; `--linux` repeats clippy and the tests in WSL.
 - `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.

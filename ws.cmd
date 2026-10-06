@@ -1,2 +1,2 @@
 @echo off
-C:\Python314\python.exe -X utf8 "%~dp0ws.py" %*
+py -3 -X utf8 "%~dp0ws.py" %*

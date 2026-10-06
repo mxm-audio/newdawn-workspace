@@ -4,6 +4,7 @@ The owner, 2026-10-06: "I want to work in this overarching folder. doing stuff r
 tired real soon." Each repository stays standalone (a contributor clones one and needs none of
 this); `ws` is how the workspace does the same step everywhere at once.
 
+    python ws.py clone                       clone every repository in repos.txt that isn't here yet
     python ws.py status                      one row per repository: changes, unpushed, tag, pins
     python ws.py check [--linux]             fmt, clippy -D warnings and the fast tests, only where
                                              something changed (uncommitted or unpushed); --linux
@@ -18,7 +19,7 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py bump kit|player <tag>       move every dependent repository to a new tag and relock
 
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit, player,
-instruments, effects, plugins (= instruments + effects), tools, all (the default).
+instruments, effects, plugins (= instruments + effects), tools, ops, all (the default).
 """
 import json
 import os
@@ -31,9 +32,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 ORG = "https://github.com/mxm-audio"
+REPO_LIST = ROOT / "repos.txt"
 CONFIG = ROOT / ".cargo" / "config.toml"
 LINK_STATE = ROOT / ".cargo" / "ws-link.json"
-GROUPS = ["newdawn", "kit", "player", "instruments", "effects", "tools"]
+GROUPS = ["newdawn", "kit", "player", "instruments", "effects", "tools", "ops"]
 # `link` owns only this block of the root config; anything else there (sccache, say) is kept.
 BEGIN, END = "# >>> ws link", "# <<< ws link"
 
@@ -55,13 +57,36 @@ def repositories():
     out = {}
     if (ROOT / "newdawn" / ".git").exists():
         out["newdawn"] = ("newdawn", ROOT / "newdawn")
-    for group in GROUPS[1:]:
+    for group in GROUPS[1:-1]:
         folder = ROOT / group
         if folder.is_dir():
             for path in sorted(folder.iterdir()):
                 if (path / ".git").exists():
                     out[path.name] = (group, path)
+    if (ROOT / "ops" / ".git").exists():
+        out["ops"] = ("ops", ROOT / "ops")
     return out
+
+
+def listed():
+    """folder -> clone URL, from repos.txt."""
+    out = {}
+    for line in REPO_LIST.read_text(encoding="utf-8").splitlines():
+        line = line.split("#")[0].strip()
+        if line:
+            folder, url = line.split()
+            out[folder] = url
+    return out
+
+
+def cmd_clone(args):
+    for folder, url in listed().items():
+        dest = ROOT / folder
+        if (dest / ".git").exists():
+            continue
+        r = subprocess.run(["git", "clone", "-q", url, str(dest)], capture_output=True, text=True)
+        print(f"{folder}: {'cloned' if r.returncode == 0 else 'not cloned (private, or no access)'}")
+    print("every repository in repos.txt is here")
 
 
 def selected(args):
@@ -117,6 +142,10 @@ def cmd_status(args):
         flag = "" if s["upstream"] else "  (no remote)"
         print(f"{name:24} {group:12} {s['dirty'] or '':>7} {s['ahead'] or '':>5} {s['behind'] or '':>6}  "
               f"{s['tag']:10} {s['kit']:8} {s['player']}{flag}")
+    here = {p.relative_to(ROOT).as_posix() for _, p in repositories().values()}
+    unlisted = sorted(here - set(listed()))
+    if unlisted:
+        print(f"\nnot in repos.txt (add them, so `ws clone` brings them to another machine): {', '.join(unlisted)}")
     if linked():
         print(f"\nLINKED: {CONFIG} builds against local repositories (`python ws.py unlink` to go back).")
 
@@ -275,7 +304,7 @@ def cmd_bump(args):
         print(f"{name}: {source} -> {tag}, {'relocked' if r.returncode == 0 else 'DOES NOT RESOLVE: ' + r.stderr.strip()[-200:]}")
 
 
-COMMANDS = {"status": cmd_status, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
+COMMANDS = {"clone": cmd_clone, "status": cmd_status, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
             "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "bump": cmd_bump}
 
 if __name__ == "__main__":
