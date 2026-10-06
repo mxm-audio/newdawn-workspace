@@ -23,8 +23,9 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py unlink                      back to the tags; restores the lockfiles `link` touched
     python ws.py bump kit|player <tag>       move every dependent repository to a new tag and relock
 
-Every command takes --only <name,...>: repository names, or the groups newdawn, kit, player,
-instruments, effects, plugins (= instruments + effects), tools, ops, all (the default).
+Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
+forks (nice-plug, egui-baseview), player, instruments, effects, plugins (= instruments +
+effects), tools, ops, all (the default).
 """
 import json
 import os
@@ -73,7 +74,11 @@ def repositories():
         if folder.is_dir():
             for path in sorted(folder.iterdir()):
                 if (path / ".git").exists():
-                    out[path.name] = (group, path)
+                    # The kit/ folder holds mxm-kit and the forks; they are separate groups, so
+                    # `kit` means mxm-kit here as in `link` and `bump` (2026-10-06: `tag --only kit`
+                    # used to tag the forks too).
+                    label = "forks" if group == "kit" and path.name in FORKS else group
+                    out[path.name] = (label, path)
     if (ROOT / "ops" / ".git").exists():
         out["ops"] = ("ops", ROOT / "ops")
     return out
@@ -122,7 +127,7 @@ def selected(args):
     for name, (group, path) in repos.items():
         if name in only or group in only or ("plugins" in only and group in ("instruments", "effects")):
             pick[name] = (group, path)
-    unknown = [o for o in only if o not in repos and o not in GROUPS + ["plugins", "all"]]
+    unknown = [o for o in only if o not in repos and o not in GROUPS + ["forks", "plugins", "all"]]
     if unknown:
         raise SystemExit(f"unknown repository or group: {', '.join(unknown)}")
     return pick
@@ -415,10 +420,19 @@ def cmd_tag(args):
     if len(words) != 1 or not re.fullmatch(r"v?\d+\.\d+\.\d+(-[\w.]+)?", words[0]):
         raise SystemExit("usage: python ws.py tag <version, e.g. v0.1.1> --only <names>")
     tag = words[0]
+    fork_tag = re.fullmatch(r"\d+\.\d+\.\d+-mxm\.\d+", tag) is not None
     for name, (group, path) in selected(args).items():
         status = status_of(path)
         if status != "public":
             print(f"{name}: refused, {status} in repos.txt")
+            continue
+        # A fork's tag is upstream's version plus -mxm.N (0.4.2-mxm.1); anything else on a fork,
+        # or a fork-style tag elsewhere, is a slip like `--only kit` selecting the forks did.
+        if name in FORKS and not fork_tag:
+            print(f"{name}: refused, a fork's tag is <upstream version>-mxm.<n>, not {tag}")
+            continue
+        if name not in FORKS and fork_tag:
+            print(f"{name}: refused, {tag} is a fork-style tag and {name} is not a fork")
             continue
         if git(path, "status", "--porcelain"):
             print(f"{name}: refused, uncommitted work")

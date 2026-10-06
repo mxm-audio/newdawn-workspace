@@ -66,8 +66,10 @@ step that repeats across repositories, rather than a loop by hand:
   lockfiles `link` changed. `push` refuses while linked. If the kit's version changed, run
   `cargo update -p <crate>` in the repository you build.
 - `bump kit|player <tag>`: move every dependent to a published tag and relock.
-- `--only <names>`: repositories, or the groups `newdawn`, `kit`, `player`, `instruments`, `effects`,
-  `plugins`, `tools`.
+- `--only <names>`: repositories, or the groups `newdawn`, `kit` (mxm-kit alone, as in `link` and
+  `bump`), `forks` (nice-plug, egui-baseview), `player`, `instruments`, `effects`, `plugins`, `tools`.
+  `tag` refuses a fork unless the tag is `<upstream version>-mxm.<n>`, and refuses that form elsewhere
+  (2026-10-06: `tag --only kit` once tagged the forks too).
 
 Each public repository still builds and tests alone from a fresh clone: nothing in one may need this
 folder, and its docs must not send a contributor here.
