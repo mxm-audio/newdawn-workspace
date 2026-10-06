@@ -25,11 +25,11 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 
 | Path | What | Repository |
 |---|---|---|
-| `newdawn/` | The DAW | `maxmcorp/newDAWn`, moving to `mxm-audio/newdawn`; GPL-3.0 |
+| `newdawn/` | The DAW | `maxmcorp/newDAWn`, private until it is ready (2026-10-06); GPL-3.0 |
 | `kit/mxm-kit/` | The shared crates every instrument and the DAW use | `mxm-audio/mxm-kit`, MIT |
 | `kit/nice-plug/`, `kit/egui-baseview/` | Forks: upstream plus each `PATCHES.md` | `mxm-audio`, ISC and MIT/Apache |
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in | `mxm-audio/mxm-player`, GPL-3.0 |
-| `instruments/<name>/` (11), `effects/<name>/` (9) | One repository per product | `mxm-audio/<name>`, GPL-3.0 |
+| `instruments/<name>/` (11), `effects/<name>/` (9) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` private until it is ready (2026-10-06) |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
 | `ops/` | The owner's split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
@@ -55,6 +55,8 @@ step that repeats across repositories, rather than a loop by hand:
 - `check [--linux]`: fmt, clippy `-D warnings` and `cargo test`, only in repositories with
   uncommitted or unpushed work; `--linux` repeats clippy and the tests in WSL.
 - `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.
+- `tag <version>`: annotated tag on HEAD, only where `repos.txt` says `released`; `push --tags`
+  publishes them.
 - `each <command>`: any command in every repository.
 - `link kit [player]` / `unlink`: build against the local mxm-kit (and player) instead of their tags,
   for one change across the kit and its users. `link` writes a marked block into the root
@@ -70,11 +72,17 @@ folder, and its docs must not send a contributor here.
 
 ## Contracts across repositories
 
-- **Dependencies by tag, never by path.** The kit is at `v0.3.1` (the two drum repositories stay on
-  `v0.3.0`, which their mxm-tools is built on), the player at `v0.1.2` for host tests, and the
-  products at `v0.1.0`. A published tag never moves: a fix gets the next tag, then each dependent
-  moves to it and relocks (`cargo update -p <crate>`). The order is kit, player, plugins, tools,
-  drums. `ops/split/bump_player.py` shows the pattern.
+- **Dependencies by tag, never by path.** Since 2026-10-06 the forks are at nice-plug `0.4.2-mxm.1`
+  and egui-baseview `0.7.2-mxm.1`, the kit at `v0.4.0`, the player at `v0.2.0` for host tests and
+  the released products at `v0.1.1` (mxm-model-drums, unreleased, stays at its split tag `v0.1.0`).
+  mxm-tools stays on kit `v0.3.0`: its crates use no nice-plug. A published tag never moves: a fix
+  gets the next tag, then each dependent moves to it and relocks (`python ws.py bump`). The order is
+  forks, kit, player, plugins, tools. A cross-repository change is built and tested first with
+  `python ws.py link`, which must be undone before any push.
+- **A fork patch only applies while it is the newest release.** When upstream publishes a newer
+  nice-plug or egui-baseview, Cargo resolves it instead and lists the fork under `[[patch.unused]]`,
+  silently dropping our patches (egui-baseview 0.7.2, 2026-10-06). Refresh the fork onto it before
+  relocking any plugin; `python ws.py status` warns when a lock shows an unused fork.
 - **CI runs only on `v*` tags, or when started by hand** (the owner, 2026-10-06). Before a push,
   check locally: `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D
   warnings` and `cargo test` on Windows, and the same on Linux in WSL (`wsl/AGENTS.md`). Only CI
@@ -87,6 +95,11 @@ folder, and its docs must not send a contributor here.
   2.39 crashes on them at thread exit.
 - **Publishing needs the owner.** Creating a repository, pushing a release tag or pushing to a public
   `main` is outward-facing: ask first.
+- **Visibility, release and listing are separate** (the owner, 2026-10-06). A repository's source can
+  be public and its product still unreleased. Released means tagged, built by CI and shipped;
+  `repos.txt` records `released` or `unreleased` for each, and only `python ws.py tag` makes release
+  tags, refusing the unreleased. Unreleased now: `newdawn` and `mxm-model-drums` (both private until
+  they are ready) and `ops`. A product becomes released when the owner says so: flip its status.
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.
 

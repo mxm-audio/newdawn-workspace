@@ -10,11 +10,15 @@ this); `ws` is how the workspace does the same step everywhere at once.
                                              something changed (uncommitted or unpushed); --linux
                                              also runs them in WSL
     python ws.py commit -m "message"         commit every changed repository with one message
-    python ws.py push                        push every repository that is ahead (refused while linked)
+    python ws.py push [--tags]               push every repository that is ahead (refused while linked);
+                                             --tags also publishes the tags `ws tag` made
+    python ws.py tag <version>               tag HEAD where repos.txt says `released`; refuses the rest
     python ws.py pull                        fast-forward every repository
     python ws.py each <command ...>          run a command in every repository
-    python ws.py link kit [player]           build against the local mxm-kit (and MXM Player) instead
-                                             of their tags, for a change across repositories
+    python ws.py link kit [player] [nice-plug] [egui-baseview]
+                                             build against the local copies instead of their tags,
+                                             for a change across repositories (a fork's version must
+                                             match what each repository requires)
     python ws.py unlink                      back to the tags; restores the lockfiles `link` touched
     python ws.py bump kit|player <tag>       move every dependent repository to a new tag and relock
 
@@ -46,6 +50,12 @@ def without_link():
     return re.sub(rf"(?s){re.escape(BEGIN)}.*?{re.escape(END)}\n?", "", CONFIG.read_text(encoding="utf-8"))
 
 
+def write(path, text):
+    """Text with LF line endings. `Path.write_text(newline=)` needs Python 3.10; macOS ships 3.9."""
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+
+
 def linked():
     return CONFIG.exists() and BEGIN in CONFIG.read_text(encoding="utf-8")
 
@@ -69,19 +79,24 @@ def repositories():
 
 
 def listed():
-    """folder -> clone URL, from repos.txt."""
+    """folder -> (clone URL, status), from repos.txt. A repository without `released` is
+    unreleased: `ws tag` refuses it, so a forgotten status can only hold a release back."""
     out = {}
     for line in REPO_LIST.read_text(encoding="utf-8").splitlines():
         line = line.split("#")[0].strip()
         if line:
-            folder, url = line.split()
-            out[folder] = url
+            folder, url, *rest = line.split()
+            out[folder] = (url, rest[0] if rest else "unreleased")
     return out
+
+
+def status_of(path):
+    return listed().get(path.relative_to(ROOT).as_posix(), (None, "unlisted"))[1]
 
 
 def cmd_clone(args):
     missing = []
-    for folder, url in listed().items():
+    for folder, (url, _) in listed().items():
         dest = ROOT / folder
         if (dest / ".git").exists():
             continue
@@ -131,6 +146,21 @@ def state(path):
             "upstream": bool(git(path, "rev-parse", "--abbrev-ref", "@{u}"))}
 
 
+FORKS = ("nice-plug", "egui-baseview")
+
+
+def unused_forks(path):
+    """The MXM forks a repository's Cargo.lock lists under `[[patch.unused]]`: Cargo resolved a
+    newer upstream release instead, so the fork's patches are not in the build (2026-10-06:
+    egui-baseview 0.7.2 on crates.io silently replaced the 0.7.1 fork this way)."""
+    lock = path / "Cargo.lock"
+    if not lock.exists():
+        return []
+    text = lock.read_text(encoding="utf-8")
+    blocks = re.findall(r'\[\[patch\.unused\]\]\s*\nname = "([^"]+)"', text)
+    return [name for name in blocks if name in FORKS]
+
+
 def changed(repos):
     with ThreadPoolExecutor(8) as pool:
         states = dict(zip(repos, pool.map(lambda r: state(r[1]), repos.values())))
@@ -143,11 +173,16 @@ def cmd_status(args):
     repos = selected(args)
     with ThreadPoolExecutor(8) as pool:
         rows = list(pool.map(lambda item: (item[0], item[1][0], state(item[1][1])), repos.items()))
-    print(f"{'repository':24} {'group':12} {'changed':>7} {'ahead':>5} {'behind':>6}  {'tag':10} {'kit':8} player")
+    print(f"{'repository':24} {'group':12} {'status':11} {'changed':>7} {'ahead':>5} {'behind':>6}  "
+          f"{'tag':12} {'kit':8} player")
     for name, group, s in rows:
         flag = "" if s["upstream"] else "  (no remote)"
-        print(f"{name:24} {group:12} {s['dirty'] or '':>7} {s['ahead'] or '':>5} {s['behind'] or '':>6}  "
-              f"{s['tag']:10} {s['kit']:8} {s['player']}{flag}")
+        print(f"{name:24} {group:12} {status_of(repos[name][1]):11} {s['dirty'] or '':>7} "
+              f"{s['ahead'] or '':>5} {s['behind'] or '':>6}  {s['tag']:12} {s['kit']:8} {s['player']}{flag}")
+    shadowed = {name: unused_forks(path) for name, (group, path) in repos.items() if unused_forks(path)}
+    for name, forks in shadowed.items():
+        print(f"\nWARNING {name}: Cargo.lock does not use the {', '.join(forks)} fork (a newer upstream "
+              f"release won): refresh the fork onto it, then relock. See the fork's PATCHES.md.")
     here = {p.relative_to(ROOT).as_posix() for _, p in repositories().values()}
     unlisted = sorted(here - set(listed()))
     if unlisted:
@@ -203,11 +238,39 @@ def cmd_push(args):
     if linked():
         raise SystemExit("refused: the workspace is linked to local repositories (`python ws.py unlink` first), "
                          "so a Cargo.lock may name local paths")
+    tags = "--tags" in args
     for name, (group, path) in selected(args).items():
         s = state(path)
         if s["upstream"] and s["ahead"]:
             r = subprocess.run(["git", "-C", str(path), "push", "-q"], capture_output=True, text=True)
             print(f"{name}: {'pushed ' + str(s['ahead']) + ' commit(s)' if r.returncode == 0 else 'FAILED ' + r.stderr.strip()}")
+        if tags and s["upstream"]:
+            # Only annotated tags reachable from the pushed branch: the ones `ws tag` makes.
+            r = subprocess.run(["git", "-C", str(path), "push", "-q", "--follow-tags"],
+                               capture_output=True, text=True)
+            if r.returncode:
+                print(f"{name}: tags FAILED {r.stderr.strip()}")
+
+
+def cmd_tag(args):
+    """Tag HEAD in every selected repository that repos.txt marks `released`. Refuses the rest,
+    and any repository with uncommitted work. `ws push --tags` publishes them."""
+    words = [a for a in args if not a.startswith("--")]
+    if "--only" in args:
+        words.remove(args[args.index("--only") + 1])
+    if len(words) != 1 or not re.fullmatch(r"v?\d+\.\d+\.\d+(-[\w.]+)?", words[0]):
+        raise SystemExit("usage: python ws.py tag <version, e.g. v0.1.1> --only <names>")
+    tag = words[0]
+    for name, (group, path) in selected(args).items():
+        status = status_of(path)
+        if status != "released":
+            print(f"{name}: refused, {status} in repos.txt")
+            continue
+        if git(path, "status", "--porcelain"):
+            print(f"{name}: refused, uncommitted work")
+            continue
+        r = subprocess.run(["git", "-C", str(path), "tag", "-a", tag, "-m", tag], capture_output=True, text=True)
+        print(f"{name}: {'tagged ' + tag if r.returncode == 0 else 'FAILED ' + r.stderr.strip()}")
 
 
 def cmd_pull(args):
@@ -252,20 +315,30 @@ def cmd_link(args):
     lines = ["# Written by `python ws.py link`: every repository below builds against these local",
              "# repositories instead of their tags. `python ws.py unlink` removes this block; never push",
              "# while it is here (`ws push` refuses).", ""]
+    forks = []
     for n in names:
         repo = sources.get(n, n)
         if repo not in repos:
             raise SystemExit(f"unknown repository: {n}")
+        root = repos[repo][1]
+        package = re.search(r'(?m)^\[package\][^\[]*?^name\s*=\s*"([^"]+)"',
+                            (root / "Cargo.toml").read_text(encoding="utf-8"))
+        if package:
+            # A fork (nice-plug, egui-baseview) is one crate that replaces a crates.io release; every
+            # repository's own [patch.crates-io] points at its tag, and this one takes precedence.
+            forks.append(f'{package.group(1)} = {{ path = "{root.as_posix()}" }}')
+            continue
         lines.append(f'[patch."{ORG}/{repo}"]')
-        for crate, folder in sorted(crates_of(repos[repo][1]).items()):
+        for crate, folder in sorted(crates_of(root).items()):
             lines.append(f'{crate} = {{ path = "{folder.as_posix()}" }}')
         lines.append("")
+    if forks:
+        lines += ["[patch.crates-io]", *forks, ""]
     # Remember which lockfiles were clean, so unlink can restore exactly those.
     clean = [name for name, (g, p) in repos.items()
              if (p / "Cargo.lock").exists() and not git(p, "status", "--porcelain", "Cargo.lock")]
     CONFIG.parent.mkdir(exist_ok=True)
-    CONFIG.write_text(without_link() + BEGIN + "\n" + "\n".join(lines) + END + "\n",
-                      encoding="utf-8", newline="\n")
+    write(CONFIG, without_link() + BEGIN + "\n" + "\n".join(lines) + END + "\n")
     LINK_STATE.write_text(json.dumps({"linked": names, "clean_locks": clean}), encoding="utf-8")
     print(f"linked {', '.join(names)}: {CONFIG}")
 
@@ -277,7 +350,7 @@ def cmd_unlink(args):
     state_ = json.loads(LINK_STATE.read_text(encoding="utf-8")) if LINK_STATE.exists() else {"clean_locks": []}
     rest = without_link()
     if rest.strip():
-        CONFIG.write_text(rest, encoding="utf-8", newline="\n")
+        write(CONFIG, rest)
     else:
         CONFIG.unlink()
     LINK_STATE.unlink(missing_ok=True)
@@ -304,13 +377,16 @@ def cmd_bump(args):
         new = pattern.sub(rf'\1"{tag}"', text)
         if new == text:
             continue
-        manifest.write_text(new, encoding="utf-8", newline="\n")
+        write(manifest, new)
         r = subprocess.run(["cargo", "metadata", "--format-version", "1", "--quiet"], cwd=path,
                            capture_output=True, text=True)
         print(f"{name}: {source} -> {tag}, {'relocked' if r.returncode == 0 else 'DOES NOT RESOLVE: ' + r.stderr.strip()[-200:]}")
+        if unused_forks(path):
+            print(f"  WARNING {name}: the {', '.join(unused_forks(path))} fork is unused in Cargo.lock "
+                  f"(a newer upstream release won); refresh the fork before releasing")
 
 
-COMMANDS = {"clone": cmd_clone, "status": cmd_status, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
+COMMANDS = {"clone": cmd_clone, "status": cmd_status, "tag": cmd_tag, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
             "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "bump": cmd_bump}
 
 if __name__ == "__main__":
