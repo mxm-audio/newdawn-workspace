@@ -73,7 +73,8 @@ folder, and its docs must not send a contributor here.
 ## Contracts across repositories
 
 - **Dependencies by tag, never by path.** Since 2026-10-06 the forks are at nice-plug `0.4.2-mxm.1`
-  and egui-baseview `0.7.2-mxm.1`, the kit at `v0.4.0`, the player at `v0.2.0` for host tests and
+  and egui-baseview `0.7.2-mxm.1`, the kit at `v0.4.0`, the player at `v0.2.0` for host tests
+  (`v0.2.1` changes only its macOS example) and
   the released products at `v0.1.1` (mxm-model-drums, unreleased, stays at its split tag `v0.1.0`).
   mxm-tools stays on kit `v0.3.0`: its crates use no nice-plug. A published tag never moves: a fix
   gets the next tag, then each dependent moves to it and relocks (`python ws.py bump`). The order is
