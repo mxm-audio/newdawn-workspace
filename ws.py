@@ -80,6 +80,7 @@ def listed():
 
 
 def cmd_clone(args):
+    missing = []
     for folder, url in listed().items():
         dest = ROOT / folder
         if (dest / ".git").exists():
@@ -88,7 +89,10 @@ def cmd_clone(args):
         r = subprocess.run(["git", "clone", "-q", url, str(dest)], capture_output=True, text=True,
                            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
         print(f"{folder}: {'cloned' if r.returncode == 0 else 'not cloned (private, or no access)'}")
-    print("every repository in repos.txt is here")
+        if r.returncode:
+            missing.append(folder)
+    print(f"not here: {', '.join(missing)} (log in to GitHub, then run clone again)" if missing
+          else "every repository in repos.txt is here")
 
 
 def selected(args):
