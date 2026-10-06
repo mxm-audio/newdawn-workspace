@@ -28,5 +28,5 @@ without changing your default.
 
 MIT licensed (`LICENSE`). The repositories inside carry their own licences.
 
-The public repositories are at [github.com/mxm-audio](https://github.com/mxm-audio). Official,
-signed builds of newDAWn and the MXM instruments are sold at [mxm.dk](https://mxm.dk).
+The public repositories are at [github.com/mxm-audio](https://github.com/mxm-audio). Pre-alpha:
+nothing is released and no builds go to anyone yet ([mxm.dk](https://mxm.dk) will sell them).

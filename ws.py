@@ -12,7 +12,7 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py commit -m "message"         commit every changed repository with one message
     python ws.py push [--tags]               push every repository that is ahead (refused while linked);
                                              --tags also publishes the tags `ws tag` made
-    python ws.py tag <version>               tag HEAD where repos.txt says `released`; refuses the rest
+    python ws.py tag <version>               tag HEAD where repos.txt says `public` (a version pin)
     python ws.py pull                        fast-forward every repository
     python ws.py each <command ...>          run a command in every repository
     python ws.py link kit [player] [nice-plug] [egui-baseview]
@@ -79,14 +79,14 @@ def repositories():
 
 
 def listed():
-    """folder -> (clone URL, status), from repos.txt. A repository without `released` is
-    unreleased: `ws tag` refuses it, so a forgotten status can only hold a release back."""
+    """folder -> (clone URL, status), from repos.txt. A repository without `public` counts as
+    private: `ws tag` refuses it, so a forgotten status can only hold a tag back."""
     out = {}
     for line in REPO_LIST.read_text(encoding="utf-8").splitlines():
         line = line.split("#")[0].strip()
         if line:
             folder, url, *rest = line.split()
-            out[folder] = (url, rest[0] if rest else "unreleased")
+            out[folder] = (url, rest[0] if rest else "private")
     return out
 
 
@@ -253,8 +253,9 @@ def cmd_push(args):
 
 
 def cmd_tag(args):
-    """Tag HEAD in every selected repository that repos.txt marks `released`. Refuses the rest,
-    and any repository with uncommitted work. `ws push --tags` publishes them."""
+    """Tag HEAD in every selected repository that repos.txt marks `public`. Refuses the rest, and
+    any repository with uncommitted work. `ws push --tags` publishes them. Pre-alpha: a tag is a
+    version pin another repository depends on, never a release."""
     words = [a for a in args if not a.startswith("--")]
     if "--only" in args:
         words.remove(args[args.index("--only") + 1])
@@ -263,7 +264,7 @@ def cmd_tag(args):
     tag = words[0]
     for name, (group, path) in selected(args).items():
         status = status_of(path)
-        if status != "released":
+        if status != "public":
             print(f"{name}: refused, {status} in repos.txt")
             continue
         if git(path, "status", "--porcelain"):

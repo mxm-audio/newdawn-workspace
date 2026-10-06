@@ -1,31 +1,31 @@
-# Every repository in this workspace: <folder> <clone URL> <status>. `python ws.py clone` clones
-# the missing ones (private ones are skipped for anyone without access). Status is `released`
-# or `unreleased`: `ws tag` tags only released repositories, and the release pipeline ships only
-# those. A repository's source can be public and still unreleased (the owner, 2026-10-06).
-newdawn https://github.com/maxmcorp/newDAWn.git unreleased  # private until it is ready (the owner, 2026-10-06)
-kit/egui-baseview https://github.com/mxm-audio/egui-baseview.git released
-kit/mxm-kit https://github.com/mxm-audio/mxm-kit.git released
-kit/nice-plug https://github.com/mxm-audio/nice-plug.git released
-player/mxm-player https://github.com/mxm-audio/mxm-player.git released
-instruments/mxm-creative-sampler https://github.com/mxm-audio/mxm-creative-sampler.git released
-instruments/mxm-drum-machine https://github.com/mxm-audio/mxm-drum-machine.git released
-instruments/mxm-model-drums https://github.com/mxm-audio/mxm-model-drums.git unreleased  # private until it is ready (the owner, 2026-10-06)
-instruments/mxm-mono-00 https://github.com/mxm-audio/mxm-mono-00.git released
-instruments/mxm-mono-01 https://github.com/mxm-audio/mxm-mono-01.git released
-instruments/mxm-mono-02 https://github.com/mxm-audio/mxm-mono-02.git released
-instruments/mxm-mono-03 https://github.com/mxm-audio/mxm-mono-03.git released
-instruments/mxm-mono-08 https://github.com/mxm-audio/mxm-mono-08.git released
-instruments/mxm-mono-pr1 https://github.com/mxm-audio/mxm-mono-pr1.git released
-instruments/mxm-para-07 https://github.com/mxm-audio/mxm-para-07.git released
-instruments/mxm-poly-06 https://github.com/mxm-audio/mxm-poly-06.git released
-effects/mxm-bucket-delay https://github.com/mxm-audio/mxm-bucket-delay.git released
-effects/mxm-chorus-06 https://github.com/mxm-audio/mxm-chorus-06.git released
-effects/mxm-classic-verb https://github.com/mxm-audio/mxm-classic-verb.git released
-effects/mxm-folded-spring https://github.com/mxm-audio/mxm-folded-spring.git released
-effects/mxm-fx-convolution https://github.com/mxm-audio/mxm-fx-convolution.git released
-effects/mxm-fx-curve https://github.com/mxm-audio/mxm-fx-curve.git released
-effects/mxm-fx-delay https://github.com/mxm-audio/mxm-fx-delay.git released
-effects/mxm-grain-fx https://github.com/mxm-audio/mxm-grain-fx.git released
-effects/mxm-shimmer https://github.com/mxm-audio/mxm-shimmer.git released
-tools/mxm-tools https://github.com/mxm-audio/mxm-tools.git released
-ops https://github.com/mxm-audio/newdawn-ops unreleased  # the owner's private tooling, never released
+# Every repository in this workspace: <folder> <clone URL> <public|private>. `python ws.py clone`
+# clones the missing ones (private ones are skipped for anyone without access). `ws tag` refuses
+# private repositories. Pre-alpha (the owner, 2026-10-06): nothing is released; a tag is only a
+# version pin another repository depends on.
+newdawn https://github.com/maxmcorp/newDAWn.git private  # private until it is ready (the owner, 2026-10-06)
+kit/egui-baseview https://github.com/mxm-audio/egui-baseview.git public
+kit/mxm-kit https://github.com/mxm-audio/mxm-kit.git public
+kit/nice-plug https://github.com/mxm-audio/nice-plug.git public
+player/mxm-player https://github.com/mxm-audio/mxm-player.git public
+instruments/mxm-creative-sampler https://github.com/mxm-audio/mxm-creative-sampler.git public
+instruments/mxm-drum-machine https://github.com/mxm-audio/mxm-drum-machine.git public
+instruments/mxm-model-drums https://github.com/mxm-audio/mxm-model-drums.git private  # private until it is ready (the owner, 2026-10-06)
+instruments/mxm-mono-00 https://github.com/mxm-audio/mxm-mono-00.git public
+instruments/mxm-mono-01 https://github.com/mxm-audio/mxm-mono-01.git public
+instruments/mxm-mono-02 https://github.com/mxm-audio/mxm-mono-02.git public
+instruments/mxm-mono-03 https://github.com/mxm-audio/mxm-mono-03.git public
+instruments/mxm-mono-08 https://github.com/mxm-audio/mxm-mono-08.git public
+instruments/mxm-mono-pr1 https://github.com/mxm-audio/mxm-mono-pr1.git public
+instruments/mxm-para-07 https://github.com/mxm-audio/mxm-para-07.git public
+instruments/mxm-poly-06 https://github.com/mxm-audio/mxm-poly-06.git public
+effects/mxm-bucket-delay https://github.com/mxm-audio/mxm-bucket-delay.git public
+effects/mxm-chorus-06 https://github.com/mxm-audio/mxm-chorus-06.git public
+effects/mxm-classic-verb https://github.com/mxm-audio/mxm-classic-verb.git public
+effects/mxm-folded-spring https://github.com/mxm-audio/mxm-folded-spring.git public
+effects/mxm-fx-convolution https://github.com/mxm-audio/mxm-fx-convolution.git public
+effects/mxm-fx-curve https://github.com/mxm-audio/mxm-fx-curve.git public
+effects/mxm-fx-delay https://github.com/mxm-audio/mxm-fx-delay.git public
+effects/mxm-grain-fx https://github.com/mxm-audio/mxm-grain-fx.git public
+effects/mxm-shimmer https://github.com/mxm-audio/mxm-shimmer.git public
+tools/mxm-tools https://github.com/mxm-audio/mxm-tools.git public
+ops https://github.com/mxm-audio/newdawn-ops private  # the owner's private tooling, never public
