@@ -15,8 +15,10 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 - Make a child `AGENTS.md` when a folder becomes a durable boundary. Sections, in order: Purpose ·
   Ownership · Local Contracts · Work Guidance · Verification · Child DOX Index.
 - Keep each file under about 200 lines: commands, rules, decisions and gotchas, not descriptions of
-  code that can be read. That is Claude Code's guidance (checked 2026-10-06); many inherited files in
-  the product repositories are still far longer.
+  code that can be read. That is Claude Code's guidance (checked 2026-10-06). History, measurements,
+  rationale and worked examples go in the `NOTES.md` beside an `AGENTS.md` (in `newdawn/`, in its
+  `docs/`), linked from it; the conventions every plugin keeps are mxm-kit's
+  `docs/plugin-conventions.md`. Moving text out never drops it: `ops/dox/check_moved.py` proves it.
 
 ## What is here
 
