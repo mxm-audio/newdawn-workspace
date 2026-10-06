@@ -1,0 +1,285 @@
+"""ws: work across every newDAWn and MXM repository from the workspace root.
+
+The owner, 2026-10-06: "I want to work in this overarching folder. doing stuff repo by repo gets
+tired real soon." Each repository stays standalone (a contributor clones one and needs none of
+this); `ws` is how the workspace does the same step everywhere at once.
+
+    python ws.py status                      one row per repository: changes, unpushed, tag, pins
+    python ws.py check [--linux]             fmt, clippy -D warnings and the fast tests, only where
+                                             something changed (uncommitted or unpushed); --linux
+                                             also runs them in WSL
+    python ws.py commit -m "message"         commit every changed repository with one message
+    python ws.py push                        push every repository that is ahead (refused while linked)
+    python ws.py pull                        fast-forward every repository
+    python ws.py each <command ...>          run a command in every repository
+    python ws.py link kit [player]           build against the local mxm-kit (and MXM Player) instead
+                                             of their tags, for a change across repositories
+    python ws.py unlink                      back to the tags; restores the lockfiles `link` touched
+    python ws.py bump kit|player <tag>       move every dependent repository to a new tag and relock
+
+Every command takes --only <name,...>: repository names, or the groups newdawn, kit, player,
+instruments, effects, plugins (= instruments + effects), tools, all (the default).
+"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+ORG = "https://github.com/mxm-audio"
+CONFIG = ROOT / ".cargo" / "config.toml"
+LINK_STATE = ROOT / ".cargo" / "ws-link.json"
+GROUPS = ["newdawn", "kit", "player", "instruments", "effects", "tools"]
+# `link` owns only this block of the root config; anything else there (sccache, say) is kept.
+BEGIN, END = "# >>> ws link", "# <<< ws link"
+
+
+def without_link():
+    if not CONFIG.exists():
+        return ""
+    return re.sub(rf"(?s){re.escape(BEGIN)}.*?{re.escape(END)}\n?", "", CONFIG.read_text(encoding="utf-8"))
+
+
+def linked():
+    return CONFIG.exists() and BEGIN in CONFIG.read_text(encoding="utf-8")
+
+
+# --- repositories -------------------------------------------------------------------------------
+
+def repositories():
+    """name -> (group, path) for every repository in the workspace, in a stable order."""
+    out = {}
+    if (ROOT / "newdawn" / ".git").exists():
+        out["newdawn"] = ("newdawn", ROOT / "newdawn")
+    for group in GROUPS[1:]:
+        folder = ROOT / group
+        if folder.is_dir():
+            for path in sorted(folder.iterdir()):
+                if (path / ".git").exists():
+                    out[path.name] = (group, path)
+    return out
+
+
+def selected(args):
+    repos = repositories()
+    only = None
+    if "--only" in args:
+        only = args[args.index("--only") + 1].split(",")
+    if not only or "all" in only:
+        return repos
+    pick = {}
+    for name, (group, path) in repos.items():
+        if name in only or group in only or ("plugins" in only and group in ("instruments", "effects")):
+            pick[name] = (group, path)
+    unknown = [o for o in only if o not in repos and o not in GROUPS + ["plugins", "all"]]
+    if unknown:
+        raise SystemExit(f"unknown repository or group: {', '.join(unknown)}")
+    return pick
+
+
+def git(path, *args):
+    r = subprocess.run(["git", "-C", str(path), *args], capture_output=True, text=True, encoding="utf-8")
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def state(path):
+    dirty = [l for l in git(path, "status", "--porcelain").splitlines() if l.strip()]
+    ahead = git(path, "rev-list", "--count", "@{u}..HEAD")
+    behind = git(path, "rev-list", "--count", "HEAD..@{u}")
+    tag = git(path, "describe", "--tags", "--abbrev=0")
+    manifest = path / "Cargo.toml"
+    text = manifest.read_text(encoding="utf-8") if manifest.exists() else ""
+    kit = re.search(r'mxm-kit", tag = "([^"]+)"', text)
+    player = re.search(r'mxm-player", tag = "([^"]+)"', text)
+    return {"dirty": len(dirty), "ahead": int(ahead or 0), "behind": int(behind or 0), "tag": tag or "-",
+            "kit": kit.group(1) if kit else "-", "player": player.group(1) if player else "-",
+            "upstream": bool(git(path, "rev-parse", "--abbrev-ref", "@{u}"))}
+
+
+def changed(repos):
+    with ThreadPoolExecutor(8) as pool:
+        states = dict(zip(repos, pool.map(lambda r: state(r[1]), repos.values())))
+    return {n: v for n, v in repos.items() if states[n]["dirty"] or states[n]["ahead"]}
+
+
+# --- commands -----------------------------------------------------------------------------------
+
+def cmd_status(args):
+    repos = selected(args)
+    with ThreadPoolExecutor(8) as pool:
+        rows = list(pool.map(lambda item: (item[0], item[1][0], state(item[1][1])), repos.items()))
+    print(f"{'repository':24} {'group':12} {'changed':>7} {'ahead':>5} {'behind':>6}  {'tag':10} {'kit':8} player")
+    for name, group, s in rows:
+        flag = "" if s["upstream"] else "  (no remote)"
+        print(f"{name:24} {group:12} {s['dirty'] or '':>7} {s['ahead'] or '':>5} {s['behind'] or '':>6}  "
+              f"{s['tag']:10} {s['kit']:8} {s['player']}{flag}")
+    if linked():
+        print(f"\nLINKED: {CONFIG} builds against local repositories (`python ws.py unlink` to go back).")
+
+
+def run_in(path, command, log=None):
+    print(f"$ {' '.join(command)}", flush=True)
+    r = subprocess.run(command, cwd=path, stdout=log, stderr=subprocess.STDOUT if log else None)
+    return r.returncode
+
+
+def cmd_check(args):
+    repos = selected(args)
+    targets = repos if "--only" in args else changed(repos)
+    if not targets:
+        print("nothing changed: no repository has uncommitted or unpushed work")
+        return 0
+    linux = "--linux" in args
+    results = []
+    for name, (group, path) in targets.items():
+        if not (path / "Cargo.toml").exists():
+            continue
+        print(f"\n=== {name}", flush=True)
+        steps = [["cargo", "fmt", "--all", "--", "--check"],
+                 ["cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
+                 ["cargo", "test"]]
+        codes = [run_in(path, step) for step in steps]
+        if linux:
+            script = f"/mnt/{ROOT.drive[0].lower()}{ROOT.as_posix()[2:]}/wsl/linux-check.sh"
+            repo = f"/mnt/{path.drive[0].lower()}{path.as_posix()[2:]}"
+            codes += [run_in(path, ["wsl", "-d", "archlinux", "--", "bash", script, repo, what])
+                      for what in ("clippy", "test")]
+        results.append((name, codes))
+    print("\n" + "\n".join(f"{n:24} {'ok' if not any(c) else 'FAILED ' + str(c)}" for n, c in results))
+    return 1 if any(any(c) for _, c in results) else 0
+
+
+def cmd_commit(args):
+    if "-m" not in args:
+        raise SystemExit('usage: python ws.py commit -m "message" [--only ...]')
+    message = args[args.index("-m") + 1]
+    for name, (group, path) in selected(args).items():
+        if git(path, "status", "--porcelain"):
+            subprocess.run(["git", "-C", str(path), "add", "-A"], check=True)
+            subprocess.run(["git", "-C", str(path), "commit", "-q", "-m", message], check=True)
+            print(f"{name}: committed {git(path, 'rev-parse', '--short', 'HEAD')}")
+
+
+def cmd_push(args):
+    if linked():
+        raise SystemExit("refused: the workspace is linked to local repositories (`python ws.py unlink` first), "
+                         "so a Cargo.lock may name local paths")
+    for name, (group, path) in selected(args).items():
+        s = state(path)
+        if s["upstream"] and s["ahead"]:
+            r = subprocess.run(["git", "-C", str(path), "push", "-q"], capture_output=True, text=True)
+            print(f"{name}: {'pushed ' + str(s['ahead']) + ' commit(s)' if r.returncode == 0 else 'FAILED ' + r.stderr.strip()}")
+
+
+def cmd_pull(args):
+    def pull(item):
+        name, (group, path) = item
+        r = subprocess.run(["git", "-C", str(path), "pull", "-q", "--ff-only"], capture_output=True, text=True)
+        return f"{name}: {'ok' if r.returncode == 0 else 'FAILED ' + r.stderr.strip().splitlines()[-1]}"
+    with ThreadPoolExecutor(8) as pool:
+        print("\n".join(pool.map(pull, [i for i in selected(args).items() if state(i[1][1])["upstream"]])))
+
+
+def cmd_each(args):
+    command = [a for a in args if a != "--only"]
+    if "--only" in args:
+        i = args.index("--only")
+        command = args[:i] + args[i + 2:]
+    failed = []
+    for name, (group, path) in selected(args).items():
+        print(f"\n=== {name}", flush=True)
+        if subprocess.run(command, cwd=path, shell=os.name == "nt").returncode:
+            failed.append(name)
+    print(f"\nfailed in: {', '.join(failed)}" if failed else "\nok everywhere")
+
+
+def crates_of(repo_path):
+    """package name -> folder for every library a repository publishes (its `crates/` and `apps/`).
+    Cargo warns once per build about a patched crate the repository doesn't use: that is expected."""
+    out = {}
+    for manifest in [*repo_path.glob("crates/*/Cargo.toml"), *repo_path.glob("apps/*/Cargo.toml")]:
+        m = re.search(r'(?m)^\[package\][^\[]*?^name\s*=\s*"([^"]+)"', manifest.read_text(encoding="utf-8"))
+        if m:
+            out[m.group(1)] = manifest.parent
+    return out
+
+
+def cmd_link(args):
+    names = [a for a in args if not a.startswith("--")] or ["kit"]
+    repos = repositories()
+    sources = {"kit": "mxm-kit", "player": "mxm-player"}
+    if linked():
+        raise SystemExit("already linked: `python ws.py unlink` first")
+    lines = ["# Written by `python ws.py link`: every repository below builds against these local",
+             "# repositories instead of their tags. `python ws.py unlink` removes this block; never push",
+             "# while it is here (`ws push` refuses).", ""]
+    for n in names:
+        repo = sources.get(n, n)
+        if repo not in repos:
+            raise SystemExit(f"unknown repository: {n}")
+        lines.append(f'[patch."{ORG}/{repo}"]')
+        for crate, folder in sorted(crates_of(repos[repo][1]).items()):
+            lines.append(f'{crate} = {{ path = "{folder.as_posix()}" }}')
+        lines.append("")
+    # Remember which lockfiles were clean, so unlink can restore exactly those.
+    clean = [name for name, (g, p) in repos.items()
+             if (p / "Cargo.lock").exists() and not git(p, "status", "--porcelain", "Cargo.lock")]
+    CONFIG.parent.mkdir(exist_ok=True)
+    CONFIG.write_text(without_link() + BEGIN + "\n" + "\n".join(lines) + END + "\n",
+                      encoding="utf-8", newline="\n")
+    LINK_STATE.write_text(json.dumps({"linked": names, "clean_locks": clean}), encoding="utf-8")
+    print(f"linked {', '.join(names)}: {CONFIG}")
+
+
+def cmd_unlink(args):
+    if not linked():
+        print("not linked")
+        return
+    state_ = json.loads(LINK_STATE.read_text(encoding="utf-8")) if LINK_STATE.exists() else {"clean_locks": []}
+    rest = without_link()
+    if rest.strip():
+        CONFIG.write_text(rest, encoding="utf-8", newline="\n")
+    else:
+        CONFIG.unlink()
+    LINK_STATE.unlink(missing_ok=True)
+    repos = repositories()
+    for name in state_["clean_locks"]:
+        path = repos.get(name, (None, None))[1]
+        if path and git(path, "status", "--porcelain", "Cargo.lock"):
+            subprocess.run(["git", "-C", str(path), "checkout", "--", "Cargo.lock"], check=True)
+            print(f"{name}: Cargo.lock restored")
+    print("unlinked: every repository builds against its tags again")
+
+
+def cmd_bump(args):
+    if len(args) < 2:
+        raise SystemExit("usage: python ws.py bump kit|player <tag> [--only ...]")
+    source = {"kit": "mxm-kit", "player": "mxm-player"}.get(args[0], args[0])
+    tag = args[1]
+    pattern = re.compile(rf'({re.escape(ORG)}/{re.escape(source)}", tag = )"[^"]+"')
+    for name, (group, path) in selected(args[2:]).items():
+        manifest = path / "Cargo.toml"
+        if not manifest.exists() or name == source:
+            continue
+        text = manifest.read_text(encoding="utf-8")
+        new = pattern.sub(rf'\1"{tag}"', text)
+        if new == text:
+            continue
+        manifest.write_text(new, encoding="utf-8", newline="\n")
+        r = subprocess.run(["cargo", "metadata", "--format-version", "1", "--quiet"], cwd=path,
+                           capture_output=True, text=True)
+        print(f"{name}: {source} -> {tag}, {'relocked' if r.returncode == 0 else 'DOES NOT RESOLVE: ' + r.stderr.strip()[-200:]}")
+
+
+COMMANDS = {"status": cmd_status, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
+            "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "bump": cmd_bump}
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
+        print(__doc__)
+        sys.exit(1)
+    sys.exit(COMMANDS[sys.argv[1]](sys.argv[2:]) or 0)

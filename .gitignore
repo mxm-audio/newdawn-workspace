@@ -13,3 +13,4 @@
 /wsl/archlinux/
 /wsl/ubuntu-24.04/
 target/
+/.cargo/

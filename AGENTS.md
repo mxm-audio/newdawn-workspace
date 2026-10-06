@@ -31,6 +31,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in | `mxm-audio/mxm-player`, GPL-3.0 |
 | `instruments/<name>/` (11), `effects/<name>/` (9) | One repository per product | `mxm-audio/<name>`, GPL-3.0 |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses | `mxm-audio/mxm-tools`, GPL-3.0 |
+| `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
 | `ops/` | The owner's split, publishing and move scripts | local and private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
 | `collection-tests/` | Tests across every product, waiting for this workspace's test package | this workspace |
@@ -39,6 +40,30 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `rust/` | `RUSTUP_HOME` and `CARGO_HOME` | not in git |
 
 The folder is itself a git repository, the workspace, which ignores every repository inside it.
+
+## Working across repositories
+
+The owner works from this folder, not repository by repository (2026-10-06: "doing stuff repo by
+repo gets tired real soon"). Start sessions here. Use `python ws.py` (or `.\ws` in PowerShell) for any
+step that repeats across repositories, rather than a loop by hand:
+
+- `status`: one row per repository (changed files, unpushed and behind, latest tag, kit and player
+  pins). Start here.
+- `check [--linux]`: fmt, clippy `-D warnings` and `cargo test`, only in repositories with
+  uncommitted or unpushed work; `--linux` repeats clippy and the tests in WSL.
+- `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.
+- `each <command>`: any command in every repository.
+- `link kit [player]` / `unlink`: build against the local mxm-kit (and player) instead of their tags,
+  for one change across the kit and its users. `link` writes a marked block into the root
+  `.cargo/config.toml`, which Cargo finds from every repository; `unlink` removes it and restores the
+  lockfiles `link` changed. `push` refuses while linked. If the kit's version changed, run
+  `cargo update -p <crate>` in the repository you build.
+- `bump kit|player <tag>`: move every dependent to a published tag and relock.
+- `--only <names>`: repositories, or the groups `newdawn`, `kit`, `player`, `instruments`, `effects`,
+  `plugins`, `tools`.
+
+Each public repository still builds and tests alone from a fresh clone: nothing in one may need this
+folder, and its docs must not send a contributor here.
 
 ## Contracts across repositories
 
