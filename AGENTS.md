@@ -52,8 +52,10 @@ step that repeats across repositories, rather than a loop by hand:
 
 - `status`: one row per repository (changed files, unpushed and behind, latest tag, kit and player
   pins). Start here. `clone` fetches any repository in `repos.txt` that isn't here.
-- `check [--linux]`: fmt, clippy `-D warnings` and `cargo test`, only in repositories with
-  uncommitted or unpushed work; `--linux` repeats clippy and the tests in WSL.
+- `reach`: what each repository's uncommitted or unpushed change reaches: "docs only", "comments
+  only", or the packages to test (the changed ones and everything using them).
+- `check`: fmt, then clippy and the fast-tier tests of just those packages, Windows only. A
+  plugin's `host-tests` (the slow tier) run only on purpose, for an audible change.
 - `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.
 - `tag <version>`: annotated tag on HEAD (a version pin), only where `repos.txt` says `public`; `push --tags`
   publishes them.
@@ -90,9 +92,14 @@ folder, and its docs must not send a contributor here.
   Windows, once. No Linux (WSL) or macOS run, and no waiting on CI, during the work: those come in
   one batch when the owner asks. Code stays cross-platform all the same.
 - **CI runs only on `v*` tags, or when started by hand** (the owner, 2026-10-06).
-- **Test only what the change can reach** (the owner: "You have a tendency to overtest each step,
-  dont do that"). A comment or format change gets `rustfmt --check`; a layout change gets the layout
-  tests; a full suite runs once at the end of a change that reaches everything, never per step.
+- **Test a minimum, smartly** (the owner, 2026-10-06: "Development time is far more important than
+  0 bugs on all platforms at this point"; earlier: "You have a tendency to overtest each step, dont
+  do that"). A comment or format change gets `rustfmt --check`; a layout change gets the layout
+  tests; otherwise `python ws.py check`. **A gate enforces it**: the PreToolUse hook
+  `~/.claude/hooks/no_unnecessary_builds.py` blocks builds and tests on the Mac or in WSL, waiting on
+  CI, loops across repositories, any build for a docs-only change, a test or clippy run wider than
+  `ws reach`, and the same command again with nothing changed. Only when the owner asks for more in
+  the conversation: put `MXM_GATE_OK='<their words>'` in the command.
 - **Bit-exact pins are Windows'.** Golden digests and recorded renders hold Windows' bits, because
   each platform's maths library rounds differently. Elsewhere a test compares within rounding or
   skips the pin (the owner, 2026-10-06).

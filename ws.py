@@ -6,9 +6,10 @@ this); `ws` is how the workspace does the same step everywhere at once.
 
     python ws.py clone                       clone every repository in repos.txt that isn't here yet
     python ws.py status                      one row per repository: changes, unpushed, tag, pins
-    python ws.py check [--linux]             fmt, clippy -D warnings and the fast tests, only where
-                                             something changed (uncommitted or unpushed); --linux
-                                             also runs them in WSL
+    python ws.py reach                       what each changed repository's change reaches: the
+                                             packages to test, or "docs only" / "comments only"
+    python ws.py check                       fmt, clippy and the tests the change reaches, Windows
+                                             only (other platforms are a later batch)
     python ws.py commit -m "message"         commit every changed repository with one message
     python ws.py push [--tags]               push every repository that is ahead (refused while linked);
                                              --tags also publishes the tags `ws tag` made
@@ -197,28 +198,180 @@ def run_in(path, command, log=None):
     return r.returncode
 
 
+# --- what a change reaches ----------------------------------------------------------------------
+#
+# The owner, 2026-10-06: "make a gate so you test a minimum, and smartly. Development time is far
+# more important than 0 bugs on all platforms at this point." `reach` decides the least that tests a
+# change; `ws check` runs exactly that, and the PreToolUse gate in ~/.claude/hooks refuses more.
+
+DOC_SUFFIXES = {".md", ".txt", ".html", ".png", ".svg", ".jpg", ".pdf"}
+DOC_NAMES = {"LICENSE", "NOTICE", "TRADEMARKS", "CONTRIBUTING", "README"}
+EVERYTHING = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo/config.toml"}
+
+
+def cargo_program():
+    local = ROOT / "rust" / "cargo" / "bin" / "cargo.exe"
+    return str(local) if local.exists() else "cargo"
+
+
+def cargo_env():
+    env = dict(os.environ)
+    if (ROOT / "rust" / "rustup").exists():
+        env.setdefault("RUSTUP_HOME", str(ROOT / "rust" / "rustup"))
+        env.setdefault("CARGO_HOME", str(ROOT / "rust" / "cargo"))
+    return env
+
+
+def changed_files(path):
+    """Files that differ from the upstream branch (committed but unpushed, or not committed), plus
+    untracked ones; against HEAD when there is no upstream."""
+    base = "@{u}" if git(path, "rev-parse", "--abbrev-ref", "@{u}") else "HEAD"
+    files = set(git(path, "diff", "--name-only", base).splitlines())
+    files |= set(git(path, "ls-files", "--others", "--exclude-standard").splitlines())
+    return base, sorted(f for f in files if f)
+
+
+def is_doc(f):
+    p = Path(f)
+    return (p.suffix.lower() in DOC_SUFFIXES or p.stem.upper() in DOC_NAMES or f.startswith(".github/")
+            or p.name in {".gitignore", ".gitattributes"})
+
+
+def comment_only(path, base, f):
+    """True when every changed line of a tracked .rs file is a comment or blank."""
+    if not f.endswith(".rs") or not git(path, "ls-files", f):
+        return False
+    lines = [l[1:].strip() for l in git(path, "diff", "-U0", base, "--", f).splitlines()
+             if l[:1] in "+-" and not l.startswith(("+++", "---"))]
+    return all(l == "" or l.startswith("//") for l in lines)
+
+
+def members(path):
+    """package name -> (folder relative to the repository, the names of the path packages it uses)."""
+    r = subprocess.run([cargo_program(), "metadata", "--no-deps", "--format-version", "1", "--offline"],
+                       cwd=path, capture_output=True, text=True, env=cargo_env())
+    if r.returncode:
+        return {}
+    meta = json.loads(r.stdout)
+    root = Path(meta["workspace_root"])
+    out = {}
+    for pkg in meta["packages"]:
+        folder = Path(pkg["manifest_path"]).parent.relative_to(root).as_posix()
+        uses = {d["name"] for d in pkg["dependencies"] if d.get("path")}
+        out[pkg["name"]] = (folder, uses)
+    return out
+
+
+def reach(path):
+    """What a repository's change reaches: kind (nothing, docs, comments, code), the packages to
+    test (the changed ones, everything in the workspace that uses them, and a plugin's
+    `<plugin>-host-tests`), and whether that is every package."""
+    base, files = changed_files(path)
+    result = {"files": files, "kind": "nothing", "reached": set(), "all": False, "members": {}}
+    if not files:
+        return result
+    code = [f for f in files if not is_doc(f)]
+    if not code:
+        result["kind"] = "docs"
+        return result
+    code = [f for f in code if not comment_only(path, base, f)]
+    if not code:
+        result["kind"] = "comments"
+        result["rust"] = [f for f in files if f.endswith(".rs")]
+        return result
+    result["kind"] = "code"
+    pkgs = members(path)
+    result["members"] = pkgs
+    if not pkgs:
+        result["all"] = True
+        return result
+    changed = set()
+    for f in code:
+        if f in EVERYTHING or f.endswith("Cargo.lock"):
+            changed = set(pkgs)
+            break
+        owners = [(len(folder), name) for name, (folder, _) in pkgs.items()
+                  if folder in ("", ".") or f == folder or f.startswith(folder + "/")]
+        owners = [o for o in owners if o[0] > 0] or owners
+        if f == "bundler.toml":
+            owners = [(1, name) for name in pkgs if (path / "bundler.toml").exists()
+                      and f"[{name}]" in (path / "bundler.toml").read_text(encoding="utf-8")]
+        if owners:
+            changed.add(max(owners)[1])
+    reached, grew = set(changed), True
+    while grew:
+        grew = False
+        for name, (_, uses) in pkgs.items():
+            if name not in reached and uses & reached:
+                reached.add(name)
+                grew = True
+    reached |= {f"{name}-host-tests" for name in reached if f"{name}-host-tests" in pkgs}
+    result["reached"] = reached
+    result["all"] = reached >= set(pkgs)
+    return result
+
+
+def least_commands(r):
+    """The least a change needs, as commands."""
+    if r["kind"] == "nothing":
+        return []
+    if r["kind"] == "docs":
+        return []
+    if r["kind"] == "comments":
+        return [["rustfmt", "--edition", "2024", "--check", *r["rust"]]]
+    # The fast tier only: `<plugin>-host-tests` (through MXM Player, with a bundle) is the slow tier,
+    # run on purpose for an audible change, not by default. Without -p, cargo takes the
+    # workspace's default members, which are the fast tier.
+    fast = sorted(p for p in r["reached"] if not p.endswith("-host-tests"))
+    pkgs = [] if r["all"] else [a for p in fast for a in ("-p", p)]
+    return [["cargo", "fmt", "--all", "--", "--check"],
+            ["cargo", "clippy", *pkgs, "--all-targets", "--", "-D", "warnings"],
+            ["cargo", "test", *pkgs]]
+
+
+def cmd_reach(args):
+    for name, (group, path) in selected(args).items():
+        if not (path / "Cargo.toml").exists():
+            continue
+        r = reach(path)
+        if r["kind"] == "nothing":
+            continue
+        what = {"docs": "docs only: nothing to build or test",
+                "comments": "comments only: rustfmt --check",
+                "code": "every package" if r["all"] else ", ".join(sorted(r["reached"]))}[r["kind"]]
+        print(f"{name}: {len(r['files'])} file(s) changed; reaches {what}")
+        for command in least_commands(r):
+            print("    " + " ".join(command))
+
+
 def cmd_check(args):
+    """fmt, clippy and the tests the change reaches, on this machine, in every changed repository.
+    Windows only during the work (the owner, 2026-10-06); other platforms are a later batch."""
+    if "--linux" in args:
+        raise SystemExit("refused: Linux and macOS are checked later, together, when the owner asks "
+                         "(2026-10-06: \"Just work on windows and then test the rest later\")")
     repos = selected(args)
     targets = repos if "--only" in args else changed(repos)
-    if not targets:
-        print("nothing changed: no repository has uncommitted or unpushed work")
-        return 0
-    linux = "--linux" in args
     results = []
     for name, (group, path) in targets.items():
         if not (path / "Cargo.toml").exists():
             continue
+        r = reach(path)
+        commands = least_commands(r)
+        if not commands:
+            print(f"{name}: {r['kind']}: nothing to build or test")
+            continue
         print(f"\n=== {name}", flush=True)
-        steps = [["cargo", "fmt", "--all", "--", "--check"],
-                 ["cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
-                 ["cargo", "test"]]
-        codes = [run_in(path, step) for step in steps]
-        if linux:
-            script = f"/mnt/{ROOT.drive[0].lower()}{ROOT.as_posix()[2:]}/wsl/linux-check.sh"
-            repo = f"/mnt/{path.drive[0].lower()}{path.as_posix()[2:]}"
-            codes += [run_in(path, ["wsl", "-d", "archlinux", "--", "bash", script, repo, what])
-                      for what in ("clippy", "test")]
+        codes = []
+        for command in commands:
+            if command[0] == "cargo":
+                command = [cargo_program(), *command[1:]]
+            print(f"$ {' '.join(command)}", flush=True)
+            codes.append(subprocess.run(command, cwd=path, env=cargo_env()).returncode)
         results.append((name, codes))
+    if not results:
+        print("nothing to check")
+        return 0
     print("\n" + "\n".join(f"{n:24} {'ok' if not any(c) else 'FAILED ' + str(c)}" for n, c in results))
     return 1 if any(any(c) for _, c in results) else 0
 
@@ -387,7 +540,7 @@ def cmd_bump(args):
                   f"(a newer upstream release won); refresh the fork before releasing")
 
 
-COMMANDS = {"clone": cmd_clone, "status": cmd_status, "tag": cmd_tag, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
+COMMANDS = {"clone": cmd_clone, "status": cmd_status, "tag": cmd_tag, "reach": cmd_reach, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
             "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "bump": cmd_bump}
 
 if __name__ == "__main__":
