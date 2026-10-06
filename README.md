@@ -19,7 +19,12 @@ python ws.py status     # one row per repository
 ```
 
 `ws.py` does one step in every repository at once (check, commit, push, pull, link the local kit,
-bump a tag); `AGENTS.md` has the list. On Windows, `.\ws` runs it too.
+bump a tag); `AGENTS.md` has the list. On macOS and Linux the command is `python3`; on Windows,
+`.\ws` runs it too.
+
+The toolchain is Rust 1.98.0, the version CI uses: `rustup toolchain install 1.98.0 -c clippy -c
+rustfmt`, then `rustup override set 1.98.0` in this folder, so it applies to every repository inside
+without changing your default.
 
 MIT licensed (`LICENSE`). The repositories inside carry their own licences.
 

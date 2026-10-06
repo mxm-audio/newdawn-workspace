@@ -84,7 +84,9 @@ def cmd_clone(args):
         dest = ROOT / folder
         if (dest / ".git").exists():
             continue
-        r = subprocess.run(["git", "clone", "-q", url, str(dest)], capture_output=True, text=True)
+        # No login prompt: a private repository without access is skipped, not waited on.
+        r = subprocess.run(["git", "clone", "-q", url, str(dest)], capture_output=True, text=True,
+                           env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
         print(f"{folder}: {'cloned' if r.returncode == 0 else 'not cloned (private, or no access)'}")
     print("every repository in repos.txt is here")
 
