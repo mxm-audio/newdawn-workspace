@@ -11,7 +11,8 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 - Before editing: read this file, then every `AGENTS.md` from the repository's root down to each path
   you will touch. The nearest one controls local detail; no child may weaken a parent.
 - After editing: update the closest owning `AGENTS.md`, and any parent or index it affects, when
-  purpose, structure, contracts, workflows or the owner's preferences changed. Delete stale text.
+  purpose, structure, contracts, workflows or the owner's preferences changed. Correct stale text;
+  its history and detail move to `NOTES.md`, never just deleted (the owner, 2026-10-06).
 - Make a child `AGENTS.md` when a folder becomes a durable boundary. Sections, in order: Purpose ·
   Ownership · Local Contracts · Work Guidance · Verification · Child DOX Index.
 - Keep each file under about 200 lines: commands, rules, decisions and gotchas, not descriptions of
