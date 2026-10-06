@@ -1,0 +1,15 @@
+# The workspace tracks only its own files. Every folder below is a repository of its own, private,
+# or machine-local.
+/newdawn/
+/kit/*/
+/player/*/
+/instruments/*/
+/effects/*/
+/tools/*/
+/ops/
+/archive/
+/projects/
+/rust/
+/wsl/archlinux/
+/wsl/ubuntu-24.04/
+target/
