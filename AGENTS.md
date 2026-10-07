@@ -35,7 +35,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `ops/` | The owner's split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
 | `collection-tests/` | Tests across every product, waiting for this workspace's test package | this workspace |
-| `archive/` | The private monorepo and research repository, with their worktrees; read-only | private |
+| `archive/` | The monorepo (archived on GitHub 2026-10-07; its worktrees' work is on `archive/*` branches) and the research repository; read-only | private |
 | `projects/` | The owner's song projects | not in git |
 | `rust/` | `RUSTUP_HOME` and `CARGO_HOME` | not in git |
 
