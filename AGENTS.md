@@ -129,7 +129,7 @@ folder, and its docs must not send a contributor here.
 
 | Doc | Scope |
 |---|---|
-| `newdawn/AGENTS.md` | The DAW: vision, decisions, open questions and its own chain |
+| `newdawn/AGENTS.md` | The DAW: its contracts and its own chain; the vision and open questions in its `docs/vision.md`, the decisions in its `NOTES.md` |
 | `kit/mxm-kit/AGENTS.md` | The kit's crates, their MSRVs, the design system and theory docs |
 | `player/mxm-player/AGENTS.md` | MXM Player and its test harness |
 | `instruments/<name>/AGENTS.md`, `effects/<name>/AGENTS.md` | One product each, from the shared plugin conventions down |
