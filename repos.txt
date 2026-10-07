@@ -3,6 +3,7 @@
 # is released, and there are no tags (the owner, 2026-10-06 and 2026-10-07).
 newdawn https://github.com/maxmcorp/newDAWn.git private  # private until it is ready (the owner, 2026-10-06)
 kit/egui-baseview https://github.com/mxm-audio/egui-baseview.git public
+kit/baseview https://github.com/mxm-audio/baseview.git public
 kit/mxm-kit https://github.com/mxm-audio/mxm-kit.git public
 kit/nice-plug https://github.com/mxm-audio/nice-plug.git public
 player/mxm-player https://github.com/mxm-audio/mxm-player.git public

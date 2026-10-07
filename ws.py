@@ -15,7 +15,7 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py tag                         refused: no tags (the owner, 2026-10-07)
     python ws.py pull                        fast-forward every repository
     python ws.py each <command ...>          run a command in every repository
-    python ws.py link kit [player] [nice-plug] [egui-baseview]
+    python ws.py link kit [player] [nice-plug] [egui-baseview] [baseview]
                                              build against the local copies instead of their tags,
                                              for a change across repositories (a fork's version must
                                              match what each repository requires)
@@ -24,7 +24,7 @@ this); `ws` is how the workspace does the same step everywhere at once.
                                              current main and relock (no tags: the owner, 2026-10-07)
 
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
-forks (nice-plug, egui-baseview), player, instruments, effects, plugins (= instruments +
+forks (nice-plug, egui-baseview, baseview), player, instruments, effects, plugins (= instruments +
 effects), tools, ops, all (the default).
 """
 import json
@@ -153,7 +153,10 @@ def state(path):
             "upstream": bool(git(path, "rev-parse", "--abbrev-ref", "@{u}"))}
 
 
-FORKS = ("nice-plug", "egui-baseview")
+FORKS = ("nice-plug", "egui-baseview", "baseview")
+# Forks that their dependents take by git rather than through [patch.crates-io]: baseview, which only
+# the egui-baseview fork depends on (2026-10-07). `link` patches their git source instead.
+GIT_FORKS = ("baseview",)
 
 
 def unused_forks(path):
@@ -466,6 +469,11 @@ def cmd_link(args):
         root = repos[repo][1]
         package = re.search(r'(?m)^\[package\][^\[]*?^name\s*=\s*"([^"]+)"',
                             (root / "Cargo.toml").read_text(encoding="utf-8"))
+        if package and repo in GIT_FORKS:
+            lines.append(f'[patch."{ORG}/{repo}"]')
+            lines.append(f'{package.group(1)} = {{ path = "{root.as_posix()}" }}')
+            lines.append("")
+            continue
         if package:
             # A fork (nice-plug, egui-baseview) is one crate that replaces a crates.io release; every
             # repository's own [patch.crates-io] points at its tag, and this one takes precedence.
