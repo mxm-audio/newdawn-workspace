@@ -104,8 +104,9 @@ folder, and its docs must not send a contributor here.
   each platform's maths library rounds differently. Elsewhere a test compares within rounding or
   skips the pin (the owner, 2026-10-06).
 - **Never unmap a plugin's library on Linux.** Load every plugin through `mxm_player::entry::load`,
-  never `PluginEntry::load` directly: Rust plugins leave per-thread destructors behind, and glibc
-  2.39 crashes on them at thread exit.
+  or a fork of it that keeps its `RTLD_NODELETE` (newDAWn's `newdawn_engine::load_entry`; the
+  player is likely to be phased out, the owner, 2026-10-07), never `PluginEntry::load` directly:
+  Rust plugins leave per-thread destructors behind, and glibc 2.39 crashes on them at thread exit.
 - **Publishing needs the owner.** Creating a repository, pushing a tag or pushing to a public
   `main` is outward-facing: ask first.
 - **Pre-alpha: nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
