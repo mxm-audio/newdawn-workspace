@@ -1,7 +1,6 @@
 # Every repository in this workspace: <folder> <clone URL> <public|private>. `python ws.py clone`
-# clones the missing ones (private ones are skipped for anyone without access). `ws tag` refuses
-# private repositories. Pre-alpha (the owner, 2026-10-06): nothing is released; a tag is only a
-# version pin another repository depends on.
+# clones the missing ones (private ones are skipped for anyone without access). Pre-alpha: nothing
+# is released, and there are no tags (the owner, 2026-10-06 and 2026-10-07).
 newdawn https://github.com/maxmcorp/newDAWn.git private  # private until it is ready (the owner, 2026-10-06)
 kit/egui-baseview https://github.com/mxm-audio/egui-baseview.git public
 kit/mxm-kit https://github.com/mxm-audio/mxm-kit.git public

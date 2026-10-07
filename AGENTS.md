@@ -50,39 +50,37 @@ The owner works from this folder, not repository by repository (2026-10-06: "doi
 repo gets tired real soon"). Start sessions here. Use `python ws.py` (or `.\ws` in PowerShell) for any
 step that repeats across repositories, rather than a loop by hand:
 
-- `status`: one row per repository (changed files, unpushed and behind, latest tag, kit and player
+- `status`: one row per repository (changed files, unpushed and behind, last commit, the kit and player commits its lock
   pins). Start here. `clone` fetches any repository in `repos.txt` that isn't here.
 - `reach`: what each repository's uncommitted or unpushed change reaches: "docs only", "comments
   only", or the packages to test (the changed ones and everything using them).
 - `check`: fmt, then clippy and the fast-tier tests of just those packages, Windows only. A
   plugin's `host-tests` (the slow tier) run only on purpose, for an audible change.
 - `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.
-- `tag <version>`: annotated tag on HEAD (a version pin), only where `repos.txt` says `public`; `push --tags`
-  publishes them.
+- `update`: moves each repository's mxm-audio dependencies to their current `main` and relocks;
+  every crates.io package stays pinned. `tag` is refused: no tags (2026-10-07).
 - `each <command>`: any command in every repository.
-- `link kit [player]` / `unlink`: build against the local mxm-kit (and player) instead of their tags,
+- `link kit [player]` / `unlink`: build against the local mxm-kit (and player) instead of their main,
   for one change across the kit and its users. `link` writes a marked block into the root
   `.cargo/config.toml`, which Cargo finds from every repository; `unlink` removes it and restores the
   lockfiles `link` changed. `push` refuses while linked. If the kit's version changed, run
   `cargo update -p <crate>` in the repository you build.
-- `bump kit|player <tag>`: move every dependent to a published tag and relock.
 - `--only <names>`: repositories, or the groups `newdawn`, `kit` (mxm-kit alone, as in `link` and
   `bump`), `forks` (nice-plug, egui-baseview), `player`, `instruments`, `effects`, `plugins`, `tools`.
-  `tag` refuses a fork unless the tag is `<upstream version>-mxm.<n>`, and refuses that form elsewhere
-  (2026-10-06: `tag --only kit` once tagged the forks too).
 
 Each public repository still builds and tests alone from a fresh clone: nothing in one may need this
 folder, and its docs must not send a contributor here.
 
 ## Contracts across repositories
 
-- **Dependencies by tag, never by path.** Since 2026-10-06 the forks are at nice-plug `0.4.2-mxm.1`
-  and egui-baseview `0.7.2-mxm.1`, the kit at `v0.4.0`, the player at `v0.2.0` for host tests
-  (`v0.2.1` changes only its macOS example) and
-  the products at `v0.1.1` (mxm-model-drums, private, stays at its split tag `v0.1.0`).
-  mxm-tools stays on kit `v0.3.0`: its crates use no nice-plug. A published tag never moves: a fix
-  gets the next tag, then each dependent moves to it and relocks (`python ws.py bump`). The order is
-  forks, kit, player, plugins, tools. A cross-repository change is built and tested first with
+- **Dependencies follow `main`, locked** (the owner, 2026-10-07: "Stop with all the tagging. It
+  makes the CI run... We are in pre-alpha and development speed is more important than
+  correctness"). Each `Cargo.toml` names every mxm-audio dependency, the forks included, with
+  `branch = "main"`; its `Cargo.lock` pins the exact commit. `python ws.py update` moves a
+  repository to the current mains, upstream first: forks, kit, player, the products whose crates
+  others use (mono-00, mono-01, poly-06, classic-verb, creative-sampler), tools, then the rest.
+  The old tags stay where they are; `test-bundles.txt` still names them, because a fetch clone is
+  reused and must not move. A change across repositories is built and tested first with
   `python ws.py link`, which must be undone before any push.
 - **A fork patch only applies while it is the newest release.** When upstream publishes a newer
   nice-plug or egui-baseview, Cargo resolves it instead and lists the fork under `[[patch.unused]]`,
@@ -93,7 +91,7 @@ folder, and its docs must not send a contributor here.
   Before a push: `cargo fmt --all -- --check`, `cargo clippy` and the tests the change reaches, on
   Windows, once. No Linux (WSL) or macOS run, and no waiting on CI, during the work: those come in
   one batch when the owner asks. Code stays cross-platform all the same.
-- **CI runs only on `v*` tags, or when started by hand** (the owner, 2026-10-06).
+- **CI runs only when started by hand** (the owner, 2026-10-07; tags no longer start it either).
 - **Test a minimum, smartly** (the owner, 2026-10-06: "Development time is far more important than
   0 bugs on all platforms at this point"; earlier: "You have a tendency to overtest each step, dont
   do that"). A comment or format change gets `rustfmt --check`; a layout change gets the layout
@@ -111,9 +109,9 @@ folder, and its docs must not send a contributor here.
 - **Publishing needs the owner.** Creating a repository, pushing a tag or pushing to a public
   `main` is outward-facing: ask first.
 - **Pre-alpha: nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
-  releasing anything to anybody. No really."). A tag is only a version pin that another repository
-  depends on, never a release, and no builds go to anyone. `repos.txt` records `public` or `private`
-  for each repository; `python ws.py tag` refuses the private ones: `newdawn` and `mxm-model-drums`
+  releasing anything to anybody. No really."). There are no tags (2026-10-07) and no builds go to
+  anyone. `repos.txt` records `public` or `private`
+  for each repository; the private ones are `newdawn` and `mxm-model-drums`
   (private until they are ready) and `ops`.
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.

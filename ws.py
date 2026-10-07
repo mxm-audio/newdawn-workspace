@@ -11,9 +11,8 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py check                       fmt, clippy and the tests the change reaches, Windows
                                              only (other platforms are a later batch)
     python ws.py commit -m "message"         commit every changed repository with one message
-    python ws.py push [--tags]               push every repository that is ahead (refused while linked);
-                                             --tags also publishes the tags `ws tag` made
-    python ws.py tag <version>               tag HEAD where repos.txt says `public` (a version pin)
+    python ws.py push                        push every repository that is ahead (refused while linked)
+    python ws.py tag                         refused: no tags (the owner, 2026-10-07)
     python ws.py pull                        fast-forward every repository
     python ws.py each <command ...>          run a command in every repository
     python ws.py link kit [player] [nice-plug] [egui-baseview]
@@ -21,7 +20,8 @@ this); `ws` is how the workspace does the same step everywhere at once.
                                              for a change across repositories (a fork's version must
                                              match what each repository requires)
     python ws.py unlink                      back to the tags; restores the lockfiles `link` touched
-    python ws.py bump kit|player <tag>       move every dependent repository to a new tag and relock
+    python ws.py update                      move each repository's mxm-audio dependencies to their
+                                             current main and relock (no tags: the owner, 2026-10-07)
 
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
 forks (nice-plug, egui-baseview), player, instruments, effects, plugins (= instruments +
@@ -142,12 +142,13 @@ def state(path):
     dirty = [l for l in git(path, "status", "--porcelain").splitlines() if l.strip()]
     ahead = git(path, "rev-list", "--count", "@{u}..HEAD")
     behind = git(path, "rev-list", "--count", "HEAD..@{u}")
-    tag = git(path, "describe", "--tags", "--abbrev=0")
-    manifest = path / "Cargo.toml"
-    text = manifest.read_text(encoding="utf-8") if manifest.exists() else ""
-    kit = re.search(r'mxm-kit", tag = "([^"]+)"', text)
-    player = re.search(r'mxm-player", tag = "([^"]+)"', text)
-    return {"dirty": len(dirty), "ahead": int(ahead or 0), "behind": int(behind or 0), "tag": tag or "-",
+    head = git(path, "log", "-1", "--format=%h %cs")
+    lock = path / "Cargo.lock"
+    text = lock.read_text(encoding="utf-8") if lock.exists() else ""
+    # Dependencies follow main (the owner, 2026-10-07): the lock's commit is the pin.
+    kit = re.search(r'mxm-audio/mxm-kit\?[^#"]*#([0-9a-f]{7})', text)
+    player = re.search(r'mxm-audio/mxm-player\?[^#"]*#([0-9a-f]{7})', text)
+    return {"dirty": len(dirty), "ahead": int(ahead or 0), "behind": int(behind or 0), "head": head or "-",
             "kit": kit.group(1) if kit else "-", "player": player.group(1) if player else "-",
             "upstream": bool(git(path, "rev-parse", "--abbrev-ref", "@{u}"))}
 
@@ -180,11 +181,11 @@ def cmd_status(args):
     with ThreadPoolExecutor(8) as pool:
         rows = list(pool.map(lambda item: (item[0], item[1][0], state(item[1][1])), repos.items()))
     print(f"{'repository':24} {'group':12} {'status':11} {'changed':>7} {'ahead':>5} {'behind':>6}  "
-          f"{'tag':12} {'kit':8} player")
+          f"{'last commit':19} {'kit':8} player")
     for name, group, s in rows:
         flag = "" if s["upstream"] else "  (no remote)"
         print(f"{name:24} {group:12} {status_of(repos[name][1]):11} {s['dirty'] or '':>7} "
-              f"{s['ahead'] or '':>5} {s['behind'] or '':>6}  {s['tag']:12} {s['kit']:8} {s['player']}{flag}")
+              f"{s['ahead'] or '':>5} {s['behind'] or '':>6}  {s['head']:19} {s['kit']:8} {s['player']}{flag}")
     shadowed = {name: unused_forks(path) for name, (group, path) in repos.items() if unused_forks(path)}
     for name, forks in shadowed.items():
         print(f"\nWARNING {name}: Cargo.lock does not use the {', '.join(forks)} fork (a newer upstream "
@@ -411,35 +412,9 @@ def cmd_push(args):
 
 
 def cmd_tag(args):
-    """Tag HEAD in every selected repository that repos.txt marks `public`. Refuses the rest, and
-    any repository with uncommitted work. `ws push --tags` publishes them. Pre-alpha: a tag is a
-    version pin another repository depends on, never a release."""
-    words = [a for a in args if not a.startswith("--")]
-    if "--only" in args:
-        words.remove(args[args.index("--only") + 1])
-    if len(words) != 1 or not re.fullmatch(r"v?\d+\.\d+\.\d+(-[\w.]+)?", words[0]):
-        raise SystemExit("usage: python ws.py tag <version, e.g. v0.1.1> --only <names>")
-    tag = words[0]
-    fork_tag = re.fullmatch(r"\d+\.\d+\.\d+-mxm\.\d+", tag) is not None
-    for name, (group, path) in selected(args).items():
-        status = status_of(path)
-        if status != "public":
-            print(f"{name}: refused, {status} in repos.txt")
-            continue
-        # A fork's tag is upstream's version plus -mxm.N (0.4.2-mxm.1); anything else on a fork,
-        # or a fork-style tag elsewhere, is a slip like `--only kit` selecting the forks did.
-        if name in FORKS and not fork_tag:
-            print(f"{name}: refused, a fork's tag is <upstream version>-mxm.<n>, not {tag}")
-            continue
-        if name not in FORKS and fork_tag:
-            print(f"{name}: refused, {tag} is a fork-style tag and {name} is not a fork")
-            continue
-        if git(path, "status", "--porcelain"):
-            print(f"{name}: refused, uncommitted work")
-            continue
-        r = subprocess.run(["git", "-C", str(path), "tag", "-a", tag, "-m", tag], capture_output=True, text=True)
-        print(f"{name}: {'tagged ' + tag if r.returncode == 0 else 'FAILED ' + r.stderr.strip()}")
-
+    raise SystemExit("refused: no tags (the owner, 2026-10-07: \"Stop with all the tagging. It makes the "
+                     "CI run... We are in pre-alpha and development speed is more important than "
+                     "correctness.\"). Repositories follow each other's main; Cargo.lock pins the commit.")
 
 def cmd_pull(args):
     def pull(item):
@@ -531,31 +506,32 @@ def cmd_unlink(args):
     print("unlinked: every repository builds against its tags again")
 
 
-def cmd_bump(args):
-    if len(args) < 2:
-        raise SystemExit("usage: python ws.py bump kit|player <tag> [--only ...]")
-    source = {"kit": "mxm-kit", "player": "mxm-player"}.get(args[0], args[0])
-    tag = args[1]
-    pattern = re.compile(rf'({re.escape(ORG)}/{re.escape(source)}", tag = )"[^"]+"')
-    for name, (group, path) in selected(args[2:]).items():
-        manifest = path / "Cargo.toml"
-        if not manifest.exists() or name == source:
+def cmd_update(args):
+    """Moves each selected repository's mxm-audio dependencies (kit, player, other products' crates,
+    the forks) to their current main: removes only those packages from Cargo.lock and lets Cargo
+    resolve them again, every crates.io package staying pinned. Runs from outside the workspace, so
+    a `ws link` cannot put local paths into a lock. Update upstream first: forks, kit, player, the
+    products whose crates others use, tools, then the rest."""
+    neutral = Path(os.environ.get("TEMP", "/tmp"))
+    for name, (group, path) in selected(args).items():
+        lock = path / "Cargo.lock"
+        if not lock.exists():
             continue
-        text = manifest.read_text(encoding="utf-8")
-        new = pattern.sub(rf'\1"{tag}"', text)
-        if new == text:
-            continue
-        write(manifest, new)
-        r = subprocess.run(["cargo", "metadata", "--format-version", "1", "--quiet"], cwd=path,
-                           capture_output=True, text=True)
-        print(f"{name}: {source} -> {tag}, {'relocked' if r.returncode == 0 else 'DOES NOT RESOLVE: ' + r.stderr.strip()[-200:]}")
+        blocks = re.split(r"(?m)^(?=\[\[)", lock.read_text(encoding="utf-8"))
+        kept = [b for b in blocks
+                if not (b.startswith("[[package]]") and f'source = "git+{ORG}/' in b)
+                and not b.startswith("[[patch.unused]]")]
+        write(lock, "".join(kept))
+        r = subprocess.run([cargo_program(), "metadata", "--format-version", "1", "--quiet",
+                            "--manifest-path", str(path / "Cargo.toml")],
+                           cwd=neutral, env=cargo_env(), capture_output=True, text=True)
+        print(f"{name}: {'relocked on main' if r.returncode == 0 else 'DOES NOT RESOLVE: ' + r.stderr.strip()[-200:]}")
         if unused_forks(path):
             print(f"  WARNING {name}: the {', '.join(unused_forks(path))} fork is unused in Cargo.lock "
-                  f"(a newer upstream release won); refresh the fork before releasing")
-
+                  f"(a newer upstream release won); refresh the fork first")
 
 COMMANDS = {"clone": cmd_clone, "status": cmd_status, "tag": cmd_tag, "reach": cmd_reach, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
-            "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "bump": cmd_bump}
+            "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "update": cmd_update}
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
