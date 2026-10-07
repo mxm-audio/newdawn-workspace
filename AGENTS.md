@@ -32,7 +32,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `instruments/<name>/` (11), `effects/<name>/` (9) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` private until it is ready (2026-10-06) |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
-| `ops/` | The owner's split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
+| `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
 | `collection-tests/` | Tests across every product, waiting for this workspace's test package | this workspace |
 | `archive/` | The monorepo (archived on GitHub 2026-10-07; its worktrees' work is on `archive/*` branches) and the research repository; read-only | private |
