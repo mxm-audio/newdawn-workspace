@@ -29,6 +29,10 @@ drive them.
   shares one build folder (`~/target/shared`).
 - Every product repository's fast tier: `wsl -d archlinux -- bash
   /mnt/e/newDAWn/wsl/linux-sweep.sh [repo ...]`. Results are in `~/sweep/summary.txt`.
+- **MXM Player is checked in a clone inside the distro, never through `/mnt/e`**: its tests load
+  bundles from its own `target/`, which in the Windows checkout holds Windows DLLs ("invalid ELF
+  header", about 180 failures, 2026-10-07). In the clone: `cargo xtask fixtures --release`, `cargo
+  build -p nice-plug-output-fixture`, `cargo xtask fetch`, then `cargo test`. The same holds on the Mac.
 - A crash that only CI shows: build in a clone inside `wsl -d Ubuntu-24.04`, then run
   `core-ubuntu.sh <clone> <test>` for every thread's backtrace from a core dump.
 
