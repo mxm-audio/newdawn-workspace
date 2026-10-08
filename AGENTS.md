@@ -13,6 +13,11 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 - After editing: update the closest owning `AGENTS.md`, and any parent or index it affects, when
   purpose, structure, contracts, workflows or the owner's preferences changed. Correct stale text;
   its history and detail move to `NOTES.md`, never just deleted (the owner, 2026-10-06).
+- **What moves to `NOTES.md` is the reasoning behind what is still in force**: the why of a rule,
+  its measurements, the owner's dated rulings. **A discarded idea or a replaced design is deleted,
+  not archived**: no copied old tables, no "until <date> it was…" asides, no "the old X" in
+  current text. Git keeps it (the owner, 2026-10-08: "it is a discarded idea that we are never
+  gonna use again"). Reasoning that still holds is restated in the current design's terms.
 - Make a child `AGENTS.md` when a folder becomes a durable boundary. Sections, in order: Purpose ·
   Ownership · Local Contracts · Work Guidance · Verification · Child DOX Index.
 - Keep each file under about 200 lines: commands, rules, decisions and gotchas, not descriptions of
