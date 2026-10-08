@@ -108,6 +108,11 @@ folder, and its docs must not send a contributor here.
 - **Bit-exact pins are Windows'.** Golden digests and recorded renders hold Windows' bits, because
   each platform's maths library rounds differently. Elsewhere a test compares within rounding or
   skips the pin (the owner, 2026-10-06).
+- **One keyboard language, newDAWn's, in the DAW and every MXM editor** (the owner, 2026-10-06 to
+  2026-10-08). The editors read it through mxm-kit's cursor (`mxm_ui::navigation`, engine
+  `mxm-keys`). **F1 shows the keys** everywhere, a sheet from the keymap in use that `Escape`
+  closes, and **BACK (`Escape`) cancels an edit or a mouse drag**. A change to the keys lands in
+  both, or in neither.
 - **Never unmap a plugin's library on Linux.** Load every plugin through `mxm_player::entry::load`,
   or a fork of it that keeps its `RTLD_NODELETE` (newDAWn's `newdawn_engine::load_entry`; the
   player is likely to be phased out, the owner, 2026-10-07), never `PluginEntry::load` directly:
