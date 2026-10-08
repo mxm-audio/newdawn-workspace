@@ -2,9 +2,9 @@
 
 ## Purpose
 
-The Linux half of every check before a tag, on this Windows machine. CI runs only on tags, so Linux
-is checked here first. Two WSL2 distros, each a disk image in its own folder, and the scripts that
-drive them.
+The Linux half of the cross-platform batch, on this Windows machine, run when the owner asks (CI
+runs only when started by hand, 2026-10-07). Two WSL2 distros, each a disk image in its own folder,
+and the scripts that drive them; `platform-sweep.sh` also runs the batch's macOS half on a Mac.
 
 ## Ownership
 
@@ -27,12 +27,16 @@ drive them.
 - One repository: `wsl -d archlinux -- bash /mnt/e/newDAWn/wsl/linux-check.sh
   /mnt/e/newDAWn/<group>/<repo> clippy|test|cargo <args>`. With `SHARED_TARGET=1` every repository
   shares one build folder (`~/target/shared`).
-- Every product repository's fast tier: `wsl -d archlinux -- bash
-  /mnt/e/newDAWn/wsl/linux-sweep.sh [repo ...]`. Results are in `~/sweep/summary.txt`.
-- **MXM Player is checked in a clone inside the distro, never through `/mnt/e`**: its tests load
-  bundles from its own `target/`, which in the Windows checkout holds Windows DLLs ("invalid ELF
-  header", about 180 failures, 2026-10-07). In the clone: `cargo xtask fixtures --release`, `cargo
-  build -p nice-plug-output-fixture`, `cargo xtask fetch`, then `cargo test`. The same holds on the Mac.
+- **The cross-platform batch, one command** (2026-10-08): `wsl -d archlinux -- bash
+  /mnt/e/newDAWn/wsl/platform-sweep.sh /mnt/e/newDAWn [repo ...]` runs fmt, clippy as CI runs it
+  and the fast tier for mxm-kit, MXM Player, every instrument and effect and mxm-tools, sharing one
+  build folder. The same script runs on a Mac with the workspace cloned (`bash
+  ~/newDAWn/wsl/platform-sweep.sh ~/newDAWn`). Results: `~/sweep/summary.txt`, ending in "sweep
+  done"; about 25 minutes here. It replaces `linux-sweep.sh`, which ran the tests alone.
+- **MXM Player is checked in a clone, never through `/mnt/e`**: its tests load bundles from its own
+  `target/`, which in the Windows checkout holds Windows DLLs ("invalid ELF header", about 180
+  failures, 2026-10-07). `platform-sweep.sh` clones its committed HEAD and builds `cargo xtask
+  fixtures --release`, `cargo build -p nice-plug-output-fixture` and `cargo xtask fetch` first.
 - A crash that only CI shows: build in a clone inside `wsl -d Ubuntu-24.04`, then run
   `core-ubuntu.sh <clone> <test>` for every thread's backtrace from a core dump.
 
