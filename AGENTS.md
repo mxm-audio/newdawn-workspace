@@ -112,7 +112,8 @@ folder, and its docs must not send a contributor here.
   2026-10-08). The editors read it through mxm-kit's cursor (`mxm_ui::navigation`, engine
   `mxm-keys`). **F1 shows the keys** everywhere, a sheet from the keymap in use that `Escape`
   closes, and **BACK (`Escape`) cancels an edit or a mouse drag**. A change to the keys lands in
-  both, or in neither.
+  both, or in neither. The DAW's panel keys and its tracker's note-entry piano sit in the same
+  keymap file as host keys, not jobs (2026-10-08): a change to them is the DAW's alone.
 - **Never unmap a plugin's library on Linux.** Load every plugin through `mxm_player::entry::load`,
   or a fork of it that keeps its `RTLD_NODELETE` (newDAWn's `newdawn_engine::load_entry`; the
   player is likely to be phased out, the owner, 2026-10-07), never `PluginEntry::load` directly:
