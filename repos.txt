@@ -25,6 +25,7 @@ effects/mxm-folded-spring https://github.com/mxm-audio/mxm-folded-spring.git pub
 effects/mxm-fx-convolution https://github.com/mxm-audio/mxm-fx-convolution.git public
 effects/mxm-fx-curve https://github.com/mxm-audio/mxm-fx-curve.git public
 effects/mxm-fx-delay https://github.com/mxm-audio/mxm-fx-delay.git public
+effects/mxm-fx-oldify https://github.com/mxm-audio/mxm-fx-oldify.git private  # private until it is ready for a release (the owner, 2026-10-09); not on GitHub yet
 effects/mxm-grain-fx https://github.com/mxm-audio/mxm-grain-fx.git public
 effects/mxm-shimmer https://github.com/mxm-audio/mxm-shimmer.git public
 tools/mxm-tools https://github.com/mxm-audio/mxm-tools.git public
