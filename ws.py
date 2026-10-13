@@ -548,7 +548,8 @@ def cmd_update(args):
 # The owner, 2026-10-12: "The idea is to have a unified key language in the daw and in the
 # plugins." A plugin carries the language it was built with, so a machine that pulled the
 # repositories still runs old plugins until they are built and installed again: `install` is that
-# step, for every plugin at once.
+# step, for every plugin at once. Since 2026-10-13 every `cargo xtask bundle` installs its plugin
+# too, in a plugin locked on a kit that has it; `install` still builds the ones nobody bundled.
 
 def clap_folder():
     """This user's CLAP folder: newDAWn and the other hosts look there, and it needs no admin."""
@@ -644,7 +645,9 @@ def cmd_install(args):
     if linked():
         print(f"LINKED: the builds use the local repositories named in {CONFIG}")
     target = ROOT / "target-shared"
-    env = {**cargo_env(), "CARGO_TARGET_DIR": str(target)}
+    # It installs each plugin itself, below, whichever kit the plugin is locked on: the kit's xtask
+    # installing a bundle too (mxm-kit's `mxm-xtask`, 2026-10-13) would copy it twice.
+    env = {**cargo_env(), "CARGO_TARGET_DIR": str(target), "MXM_INSTALL_CLAP": "0"}
     destination = clap_folder()
     destination.mkdir(parents=True, exist_ok=True)
     results, hidden = [], []

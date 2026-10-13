@@ -66,10 +66,13 @@ step that repeats across repositories, rather than a loop by hand:
 - `update`: moves each repository's mxm-audio dependencies to their current `main` and relocks;
   every crates.io package stays pinned. `tag` is refused: no tags (2026-10-07).
 - `install`: bundles every plugin as checked out (release, into the shared `target-shared/`) and
-  installs it in this user's CLAP folder, where newDAWn finds it; `--only` narrows it to some
-  plugins. A plugin keeps the keys it was built with, so a machine catches up with `pull`, then
-  `install`. It goes on past a failure, exits nonzero on one, and warns about an older copy in a
-  folder newDAWn scans first (`CLAP_PATH`, the system CLAP folder).
+  installs it in this user's CLAP folder, where newDAWn and Bitwig find it; `--only` narrows it to
+  some plugins. A plugin keeps the keys it was built with, so a machine catches up with `pull`, then
+  `install`. **Every `cargo xtask bundle` installs its plugin there too** (the owner, 2026-10-13:
+  "So the latest ones are always in the daw and bitwig"), once the plugin is locked on a kit that
+  has it: mxm-kit's `mxm-xtask`, whose `AGENTS.md` has the rules. It goes on past a failure, exits
+  nonzero on one, and warns about an older copy in a folder newDAWn scans first (`CLAP_PATH`, the
+  system CLAP folder).
 - `each <command>`: any command in every repository.
 - `link kit [player]` / `unlink`: build against the local mxm-kit (and player) instead of their main,
   for one change across the kit and its users. `link` writes a marked block into the root
