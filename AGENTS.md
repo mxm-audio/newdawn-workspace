@@ -116,7 +116,8 @@ folder, and its docs must not send a contributor here.
 - **One keyboard language, newDAWn's, in the DAW and every MXM editor** (the owner, 2026-10-06 to
   2026-10-08). The editors read it through mxm-kit's cursor (`mxm_ui::navigation`, engine
   `mxm-keys`), and **one keymap file**: the keymap in use is the one chosen in the folder they all
-  read, `<config>/mxm/keymaps/` (`mxm_ui::keymaps`; the owner, 2026-10-12). **F1 shows the keys**
+  read, `<config>/mxm/keymaps/` (`mxm_ui::keymaps`; the owner, 2026-10-12), and **one keymap
+  ships**, the key study's, editable (2026-10-13). **F1 shows the keys**
   everywhere, a sheet from the keymap in use that `Escape` closes, and **BACK (`Escape`) cancels
   an edit or a mouse drag**. A change to the keys lands in both, or in neither. The DAW's panel keys and its tracker's note-entry piano sit in the same
   keymap file as host keys, not jobs (2026-10-08): a change to them is the DAW's alone.
