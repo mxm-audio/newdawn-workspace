@@ -64,6 +64,11 @@ step that repeats across repositories, rather than a loop by hand:
 - `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.
 - `update`: moves each repository's mxm-audio dependencies to their current `main` and relocks;
   every crates.io package stays pinned. `tag` is refused: no tags (2026-10-07).
+- `install`: bundles every plugin as checked out (release, into the shared `target-shared/`) and
+  installs it in this user's CLAP folder, where newDAWn finds it; `--only` narrows it to some
+  plugins. A plugin keeps the keys it was built with, so a machine catches up with `pull`, then
+  `install`. It goes on past a failure, exits nonzero on one, and warns about an older copy in a
+  folder newDAWn scans first (`CLAP_PATH`, the system CLAP folder).
 - `each <command>`: any command in every repository.
 - `link kit [player]` / `unlink`: build against the local mxm-kit (and player) instead of their main,
   for one change across the kit and its users. `link` writes a marked block into the root
@@ -110,9 +115,10 @@ folder, and its docs must not send a contributor here.
   skips the pin (the owner, 2026-10-06).
 - **One keyboard language, newDAWn's, in the DAW and every MXM editor** (the owner, 2026-10-06 to
   2026-10-08). The editors read it through mxm-kit's cursor (`mxm_ui::navigation`, engine
-  `mxm-keys`). **F1 shows the keys** everywhere, a sheet from the keymap in use that `Escape`
-  closes, and **BACK (`Escape`) cancels an edit or a mouse drag**. A change to the keys lands in
-  both, or in neither. The DAW's panel keys and its tracker's note-entry piano sit in the same
+  `mxm-keys`), and **one keymap file**: the keymap in use is the one chosen in the folder they all
+  read, `<config>/mxm/keymaps/` (`mxm_ui::keymaps`; the owner, 2026-10-12). **F1 shows the keys**
+  everywhere, a sheet from the keymap in use that `Escape` closes, and **BACK (`Escape`) cancels
+  an edit or a mouse drag**. A change to the keys lands in both, or in neither. The DAW's panel keys and its tracker's note-entry piano sit in the same
   keymap file as host keys, not jobs (2026-10-08): a change to them is the DAW's alone.
 - **Never unmap a plugin's library on Linux.** Load every plugin through `mxm_player::entry::load`,
   or a fork of it that keeps its `RTLD_NODELETE` (newDAWn's `newdawn_engine::load_entry`; the

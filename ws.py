@@ -22,6 +22,10 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py unlink                      back to the tags; restores the lockfiles `link` touched
     python ws.py update                      move each repository's mxm-audio dependencies to their
                                              current main and relock (no tags: the owner, 2026-10-07)
+    python ws.py install                     bundle every plugin (release) as checked out and install
+                                             it in this user's CLAP folder, where newDAWn finds it;
+                                             --only narrows it to some plugins. A machine catches up
+                                             with `pull`, then `install`
 
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
 forks (nice-plug, egui-baseview, baseview), player, instruments, effects, plugins (= instruments +
@@ -538,8 +542,178 @@ def cmd_update(args):
             print(f"  WARNING {name}: the {', '.join(unused_forks(path))} fork is unused in Cargo.lock "
                   f"(a newer upstream release won); refresh the fork first")
 
+
+# --- installing the plugins -------------------------------------------------------------------
+#
+# The owner, 2026-10-12: "The idea is to have a unified key language in the daw and in the
+# plugins." A plugin carries the language it was built with, so a machine that pulled the
+# repositories still runs old plugins until they are built and installed again: `install` is that
+# step, for every plugin at once.
+
+def clap_folder():
+    """This user's CLAP folder: newDAWn and the other hosts look there, and it needs no admin."""
+    if os.name == "nt":
+        return Path(os.environ["LOCALAPPDATA"]) / "Programs" / "Common" / "CLAP"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Audio" / "Plug-Ins" / "CLAP"
+    return Path.home() / ".clap"
+
+
+def found_first():
+    """The folders newDAWn scans before this user's (its `catalog::standard_folders`): a plugin
+    found twice keeps its first bundle, so a copy there hides the one installed."""
+    folders = [Path(p) for p in os.environ.get("CLAP_PATH", "").split(os.pathsep) if p]
+    if os.name == "nt" and os.environ.get("COMMONPROGRAMFILES"):
+        folders.append(Path(os.environ["COMMONPROGRAMFILES"]) / "CLAP")
+    elif sys.platform == "darwin":
+        folders.append(Path("/Library/Audio/Plug-Ins/CLAP"))
+    return folders
+
+
+def copies_in(folder, name):
+    """Every `name` in `folder` and its subfolders, which newDAWn's scan goes into as well."""
+    try:
+        return list(folder.rglob(name))
+    except OSError:
+        return []
+
+
+def bundles_of(path):
+    """(package, bundle name) for each section of a repository's `bundler.toml`."""
+    out = []
+    for line in (path / "bundler.toml").read_text(encoding="utf-8").splitlines():
+        line = line.split("#")[0].strip()
+        section = re.fullmatch(r'\[\s*"?([^\]"]+)"?\s*\]', line)
+        if section:
+            out.append([section.group(1), section.group(1)])
+            continue
+        name = re.fullmatch(r'name\s*=\s*"([^"]+)"', line)
+        if name and out:
+            out[-1][1] = name.group(1)
+    return [tuple(pair) for pair in out]
+
+
+def remove(path):
+    if path.is_dir():
+        shutil.rmtree(path)
+    elif path.exists():
+        path.unlink()
+
+
+def place(source, destination):
+    """Copies a file, or a macOS bundle folder, over `destination` whole: beside it first, then
+    renamed over it, so a host never finds half of one and an old bundle is never merged into."""
+    if source.is_dir():
+        fresh = destination.with_name(destination.name + ".new")
+        old = destination.with_name(destination.name + ".old")
+        remove(fresh)
+        remove(old)
+        shutil.copytree(source, fresh, symlinks=True)
+        if destination.exists():
+            destination.rename(old)
+        try:
+            fresh.rename(destination)
+        except OSError:
+            # The old bundle goes back: a failed install leaves what was installed.
+            if old.exists() and not destination.exists():
+                old.rename(destination)
+            remove(fresh)
+            raise
+        remove(old)
+        return
+    temp = destination.with_name(destination.name + ".tmp")
+    try:
+        shutil.copyfile(source, temp)
+        os.replace(temp, destination)
+    finally:
+        if temp.exists():
+            temp.unlink()
+
+
+def cmd_install(args):
+    """Bundles each plugin repository's plugins (release, from what is checked out) into one shared
+    target folder, so what they share compiles once, and installs each one that built into this
+    user's CLAP folder. Goes on past a failure and says, per plugin, installed or why not."""
+    plugins = {n: v for n, v in repositories().items() if v[0] in ("instruments", "effects")}
+    if "--only" in args:
+        only = args[args.index("--only") + 1].split(",")
+        others = [o for o in only if o not in plugins and o not in ("instruments", "effects", "plugins")]
+        if others:
+            raise SystemExit(f"refused: install builds the plugins only, not {', '.join(others)}")
+        plugins = {n: v for n, v in selected(args).items() if n in plugins}
+    if linked():
+        print(f"LINKED: the builds use the local repositories named in {CONFIG}")
+    target = ROOT / "target-shared"
+    env = {**cargo_env(), "CARGO_TARGET_DIR": str(target)}
+    destination = clap_folder()
+    destination.mkdir(parents=True, exist_ok=True)
+    results, hidden = [], []
+    for name, (group, path) in plugins.items():
+        if not (path / "bundler.toml").exists():
+            continue
+        for package, bundle in bundles_of(path):
+            built = target / "bundled" / f"{bundle}.clap"
+            control_map = path / "target" / "bundled" / f"{bundle}.control-map.json"
+            print(f"\n=== {bundle} ({name})", flush=True)
+            # Only a fresh build is installed: what an earlier one left goes first.
+            try:
+                remove(built)
+                remove(control_map)
+            except OSError as error:
+                results.append((bundle, f"NOT INSTALLED: the last build's output can't be removed: "
+                                        f"{error}"))
+                continue
+            # `cargo xtask` with the alias every repository defines, but its own target folder:
+            # each repository's xtask is a binary named `xtask` that compiles its own root in, and
+            # in one shared folder one repository's would run for another's (2026-10-12, staging
+            # mono-01's control map for poly-06). The plugin itself builds in the shared folder.
+            command = [cargo_program(), "run", "--package", "xtask", "--release",
+                       "--target-dir", str(path / "target"), "--", "bundle", package, "--release"]
+            print(f"$ {' '.join(command)}", flush=True)
+            code = subprocess.run(command, cwd=path, env=env).returncode
+            if code or not built.exists():
+                results.append((bundle, "NOT INSTALLED: the build failed"))
+                continue
+            try:
+                place(built, destination / built.name)
+            except OSError as error:
+                results.append((bundle, f"NOT INSTALLED: {error}. Close the hosts using it and "
+                                        "run install again"))
+                continue
+            hidden += [copy for folder in found_first() if folder != destination
+                       for copy in copies_in(folder, built.name)]
+            # Its control map beside it, or none rather than an older one; said if even that fails.
+            installed_map = destination / control_map.name
+            try:
+                if control_map.exists():
+                    place(control_map, installed_map)
+                else:
+                    remove(installed_map)
+            except OSError as error:
+                try:
+                    remove(installed_map)
+                except OSError:
+                    pass
+                left = "an older one is still beside it" if installed_map.exists() else "it has none"
+                results.append((bundle, f"INSTALLED, BUT NOT ITS CONTROL MAP ({left}): {error}. "
+                                        "Run install again"))
+                continue
+            results.append((bundle, "installed"))
+    if not results:
+        print("nothing to install")
+        return 0
+    print("\n" + "\n".join(f"{bundle:24} {what}" for bundle, what in results))
+    print(f"\nInstalled in {destination}. Restart newDAWn to load them; Bitwig and other hosts "
+          "read that folder once it is among their plugin locations.")
+    for copy in hidden:
+        print(f"WARNING: {copy} is found before the one installed, so newDAWn loads it instead: "
+              "remove it (that folder may need an administrator)")
+    return 1 if any(what != "installed" for _, what in results) else 0
+
+
 COMMANDS = {"clone": cmd_clone, "status": cmd_status, "tag": cmd_tag, "reach": cmd_reach, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
-            "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "update": cmd_update}
+            "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "update": cmd_update,
+            "install": cmd_install}
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
