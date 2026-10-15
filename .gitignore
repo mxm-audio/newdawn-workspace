@@ -16,3 +16,7 @@
 target/
 /target-shared/
 /.cargo/
+
+# Machine-local by-products: Python's bytecode cache (ws.py), and the crash dumps Git Bash tools write.
+__pycache__/
+*.stackdump
