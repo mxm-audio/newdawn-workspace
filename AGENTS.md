@@ -77,8 +77,10 @@ step that repeats across repositories, rather than a loop by hand:
   nonzero on one, and warns about an older copy in a folder newDAWn scans first (`CLAP_PATH`, the
   system CLAP folder).
 - `each <command>`: any command in every repository.
-- `link kit [player]` / `unlink`: build against the local mxm-kit (and player) instead of their main,
-  for one change across the kit and its users. `link` writes a marked block into the root
+- `link kit [player] [<fork>…]` / `unlink`: build against the local mxm-kit, and the player and
+  the forks named (`nice-plug`, `egui-baseview`, `baseview`), instead of their main, for one change
+  across them and their users, built and checked before any of it is pushed (the owner,
+  2026-10-15). `link` writes a marked block into the root
   `.cargo/config.toml`, which Cargo finds from every repository; `unlink` removes it and restores the
   lockfiles `link` changed. `push` refuses while linked. If the kit's version changed, run
   `cargo update -p <crate>` in the repository you build.
