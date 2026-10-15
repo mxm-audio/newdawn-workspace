@@ -27,6 +27,8 @@ this); `ws` is how the workspace does the same step everywhere at once.
                                              --only narrows it to some plugins. A machine catches up
                                              with `pull`, then `install`
 
+`update` and `install` fetch first and refuse a repository whose checkout is behind its upstream.
+
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
 forks (nice-plug, egui-baseview, baseview), player, instruments, effects, plugins (= instruments +
 effects), tools, ops, all (the default).
@@ -179,6 +181,44 @@ def changed(repos):
     with ThreadPoolExecutor(8) as pool:
         states = dict(zip(repos, pool.map(lambda r: state(r[1]), repos.values())))
     return {n: v for n, v in repos.items() if states[n]["dirty"] or states[n]["ahead"]}
+
+
+def behind(item):
+    """(refuse, why) for one repository, fetched: refuse when its checkout is behind its upstream,
+    because another clone pushed and this one hasn't pulled. Relocking or building it would pair
+    its old code with the new mains (2026-10-15: the audit session pushed from another clone, a
+    relock of the old checkouts stopped chorus-06 and folded-spring building, and `install` had
+    installed the old plugins). One that can't be fetched is refused if its last fetch shows it
+    behind, and otherwise only warned about."""
+    name, (group, path) = item
+    # The branch's configured remote, not `@{u}`: that doesn't resolve before a first fetch.
+    branch = git(path, "symbolic-ref", "-q", "--short", "HEAD")
+    if not branch or not git(path, "config", f"branch.{branch}.remote"):
+        return name, (False, "")
+    # Offline, the last fetch still says whether it is behind: refused then too.
+    fetched = subprocess.run(["git", "-C", str(path), "fetch", "-q"], capture_output=True).returncode == 0
+    unknown = "" if fetched else "it can't be fetched, so it may be behind its upstream"
+    if not git(path, "rev-parse", "--abbrev-ref", "@{u}"):
+        return name, (False, unknown or "its upstream branch isn't on its remote")
+    later = int(git(path, "rev-list", "--count", "HEAD..@{u}") or 0)
+    own = int(git(path, "rev-list", "--count", "@{u}..HEAD") or 0)
+    when = "" if fetched else " as of its last fetch"
+    if not later:
+        return name, (False, unknown)
+    if own:
+        return name, (True, f"it has diverged from its upstream{when} ({own} ahead, {later} behind): merge it first")
+    return name, (True, f"it is {later} behind its upstream{when}: `python ws.py pull --only {name}` first")
+
+
+def refuse_behind(repos):
+    """Fetches the repositories, says which are behind or couldn't be fetched, and returns the names
+    of those refused."""
+    with ThreadPoolExecutor(8) as pool:
+        found = dict(pool.map(behind, repos.items()))
+    for name, (refuse, why) in found.items():
+        if why:
+            print(f"{name}: {'REFUSED' if refuse else 'WARNING'}: {why}", flush=True)
+    return {name for name, (refuse, why) in found.items() if refuse}
 
 
 # --- commands -----------------------------------------------------------------------------------
@@ -523,11 +563,15 @@ def cmd_update(args):
     the forks) to their current main: removes only those packages from Cargo.lock and lets Cargo
     resolve them again, every crates.io package staying pinned. Runs from outside the workspace, so
     a `ws link` cannot put local paths into a lock. Update upstream first: forks, kit, player, the
-    products whose crates others use, tools, then the rest."""
+    products whose crates others use, tools, then the rest. A repository behind its upstream is
+    refused, and the exit is nonzero if any is refused or doesn't resolve."""
     neutral = Path(os.environ.get("TEMP", "/tmp"))
-    for name, (group, path) in selected(args).items():
+    repos = selected(args)
+    refused = refuse_behind(repos)
+    failed = bool(refused)
+    for name, (group, path) in repos.items():
         lock = path / "Cargo.lock"
-        if not lock.exists():
+        if name in refused or not lock.exists():
             continue
         blocks = re.split(r"(?m)^(?=\[\[)", lock.read_text(encoding="utf-8"))
         kept = [b for b in blocks
@@ -538,9 +582,11 @@ def cmd_update(args):
                             "--manifest-path", str(path / "Cargo.toml")],
                            cwd=neutral, env=cargo_env(), capture_output=True, text=True)
         print(f"{name}: {'relocked on main' if r.returncode == 0 else 'DOES NOT RESOLVE: ' + r.stderr.strip()[-200:]}")
+        failed = failed or r.returncode != 0
         if unused_forks(path):
             print(f"  WARNING {name}: the {', '.join(unused_forks(path))} fork is unused in Cargo.lock "
                   f"(a newer upstream release won); refresh the fork first")
+    return 1 if failed else 0
 
 
 # --- installing the plugins -------------------------------------------------------------------
@@ -634,7 +680,8 @@ def place(source, destination):
 def cmd_install(args):
     """Bundles each plugin repository's plugins (release, from what is checked out) into one shared
     target folder, so what they share compiles once, and installs each one that built into this
-    user's CLAP folder. Goes on past a failure and says, per plugin, installed or why not."""
+    user's CLAP folder. Goes on past a failure and says, per plugin, installed or why not. A
+    repository behind its upstream is refused before anything builds."""
     plugins = {n: v for n, v in repositories().items() if v[0] in ("instruments", "effects")}
     if "--only" in args:
         only = args[args.index("--only") + 1].split(",")
@@ -651,7 +698,11 @@ def cmd_install(args):
     destination = clap_folder()
     destination.mkdir(parents=True, exist_ok=True)
     results, hidden = [], []
+    refused = refuse_behind(plugins)
     for name, (group, path) in plugins.items():
+        if name in refused:
+            results.append((name, "NOT INSTALLED: behind its upstream, pull it first"))
+            continue
         if not (path / "bundler.toml").exists():
             continue
         for package, bundle in bundles_of(path):
@@ -706,8 +757,9 @@ def cmd_install(args):
         print("nothing to install")
         return 0
     print("\n" + "\n".join(f"{bundle:24} {what}" for bundle, what in results))
-    print(f"\nInstalled in {destination}. Restart newDAWn to load them; Bitwig and other hosts "
-          "read that folder once it is among their plugin locations.")
+    if any(what.startswith(("installed", "INSTALLED")) for _, what in results):
+        print(f"\nInstalled in {destination}. Restart newDAWn to load them; Bitwig and other hosts "
+              "read that folder once it is among their plugin locations.")
     for copy in hidden:
         print(f"WARNING: {copy} is found before the one installed, so newDAWn loads it instead: "
               "remove it (that folder may need an administrator)")

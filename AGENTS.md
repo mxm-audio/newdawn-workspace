@@ -65,6 +65,9 @@ step that repeats across repositories, rather than a loop by hand:
 - `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.
 - `update`: moves each repository's mxm-audio dependencies to their current `main` and relocks;
   every crates.io package stays pinned. `tag` is refused: no tags (2026-10-07).
+- **`update` and `install` fetch first and refuse a repository behind its upstream**: other
+  sessions push from other clones, and a relock or build of an old checkout pairs its old code
+  with the new mains (2026-10-15). `pull` it, or merge one that has diverged.
 - `install`: bundles every plugin as checked out (release, into the shared `target-shared/`) and
   installs it in this user's CLAP folder, where newDAWn and Bitwig find it; `--only` narrows it to
   some plugins. A plugin keeps the keys it was built with, so a machine catches up with `pull`, then
