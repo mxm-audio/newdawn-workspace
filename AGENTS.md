@@ -40,8 +40,8 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
 | `collection-tests/` | Tests across every product, waiting for this workspace's test package | this workspace |
-| `research/` | The research behind the products: the documents read, the recordings the models are fitted to, and what may cross into a public repository; cited as `research:<path>`, never a build dependency. Copyrighted material in it is saved locally only, never committed (the owner, 2026-10-13: "The rule is that copyrighted research material is only saved locally"). Out of `archive/` since 2026-10-13; a thing of its own, not in `repos.txt` and left alone by `ws` (the owner, 2026-10-13) | `maxmcorp/mxm-collection-research`, private |
-| `archive/` | The monorepo (archived on GitHub 2026-10-07; its worktrees' work is on `archive/*` branches), read-only; and three worktrees of `research/` | private |
+| `research/` | The research behind the products: the documents read, the recordings the models are fitted to, and what may cross into a public repository; cited as `research:<path>`, never a build dependency. Copyrighted material in it is saved locally only, never committed (the owner, 2026-10-13: "The rule is that copyrighted research material is only saved locally"). Out of `archive/` since 2026-10-13 | `maxmcorp/mxm-collection-research`, private |
+| `archive/` | The monorepo (archived on GitHub 2026-10-07; its worktrees' work is on `archive/*` branches); read-only | private |
 | `projects/` | The owner's song projects | not in git |
 | `rust/` | `RUSTUP_HOME` and `CARGO_HOME` | not in git |
 
