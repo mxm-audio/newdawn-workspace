@@ -6,6 +6,7 @@ kit/egui-baseview https://github.com/mxm-audio/egui-baseview.git public
 kit/baseview https://github.com/mxm-audio/baseview.git public
 kit/mxm-kit https://github.com/mxm-audio/mxm-kit.git public
 kit/nice-plug https://github.com/mxm-audio/nice-plug.git public
+kit/nice-plug-egui https://github.com/mxm-audio/nice-plug-egui.git public
 player/mxm-player https://github.com/mxm-audio/mxm-player.git public
 instruments/mxm-creative-sampler https://github.com/mxm-audio/mxm-creative-sampler.git public
 instruments/mxm-drum-machine https://github.com/mxm-audio/mxm-drum-machine.git public

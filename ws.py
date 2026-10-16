@@ -15,7 +15,7 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py tag                         refused: no tags (the owner, 2026-10-07)
     python ws.py pull                        fast-forward every repository
     python ws.py each <command ...>          run a command in every repository
-    python ws.py link kit [player] [nice-plug] [egui-baseview] [baseview]
+    python ws.py link kit [player] [nice-plug] [nice-plug-egui] [egui-baseview] [baseview]
                                              build against the local copies instead of their tags,
                                              for a change across repositories (a fork's version must
                                              match what each repository requires)
@@ -30,7 +30,7 @@ this); `ws` is how the workspace does the same step everywhere at once.
 `update` and `install` fetch first and refuse a repository whose checkout is behind its upstream.
 
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
-forks (nice-plug, egui-baseview, baseview), player, instruments, effects, plugins (= instruments +
+forks (nice-plug, nice-plug-egui, egui-baseview, baseview), player, instruments, effects, plugins (= instruments +
 effects), tools, ops, all (the default).
 """
 import glob
@@ -161,7 +161,7 @@ def state(path):
             "upstream": bool(git(path, "rev-parse", "--abbrev-ref", "@{u}"))}
 
 
-FORKS = ("nice-plug", "egui-baseview", "baseview")
+FORKS = ("nice-plug", "nice-plug-egui", "egui-baseview", "baseview")
 # Forks that their dependents take by git rather than through [patch.crates-io]: baseview, which only
 # the egui-baseview fork depends on (2026-10-07). `link` patches their git source instead.
 GIT_FORKS = ("baseview",)
@@ -536,7 +536,9 @@ def cmd_link(args):
              if (p / "Cargo.lock").exists() and not git(p, "status", "--porcelain", "Cargo.lock")]
     CONFIG.parent.mkdir(exist_ok=True)
     write(CONFIG, without_link() + BEGIN + "\n" + "\n".join(lines) + END + "\n")
-    LINK_STATE.write_text(json.dumps({"linked": names, "clean_locks": clean}), encoding="utf-8")
+    crates = sorted(re.findall(r'(?m)^([\w-]+) = \{ path = ', "\n".join(lines + forks)))
+    LINK_STATE.write_text(json.dumps({"linked": names, "clean_locks": clean, "crates": crates}),
+                          encoding="utf-8")
     print(f"linked {', '.join(names)}: {CONFIG}")
 
 
@@ -557,7 +559,35 @@ def cmd_unlink(args):
         if path and git(path, "status", "--porcelain", "Cargo.lock"):
             subprocess.run(["git", "-C", str(path), "checkout", "--", "Cargo.lock"], check=True)
             print(f"{name}: Cargo.lock restored")
-    print("unlinked: every repository builds against its tags again")
+    # A lockfile already changed when linked isn't restored, so its other change survives; say so
+    # if the link is still in it (the kit's, 2026-10-16, found by the session whose change it was).
+    linked_crates = set(state_.get("crates", []))
+    for name, (_, path) in repos.items():
+        lock = path / "Cargo.lock"
+        if name in state_["clean_locks"] or not linked_crates or not lock.exists():
+            continue
+        own = set(crates_of(path))
+        manifest = path / "Cargo.toml"
+        root = manifest.exists() and re.search(r'(?m)^\[package\][^\[]*?^name\s*=\s*"([^"]+)"',
+                                               manifest.read_text(encoding="utf-8"))
+        if root:
+            own.add(root.group(1))
+        left = link_residue(lock.read_text(encoding="utf-8"), linked_crates - own)
+        if left:
+            print(f"{name}: Cargo.lock was already changed when linked and still carries the link "
+                  f"({', '.join(left)} without a source): drop those hunks (`git diff Cargo.lock`)")
+    print("unlinked: every repository builds against its locked mains again")
+
+
+def link_residue(lock_text, crates):
+    """The `crates` a Cargo.lock lists without a `source`: there only while a `ws link` patches them
+    in by path, since every one of them belongs to another repository."""
+    left = set()
+    for block in lock_text.split("[[package]]")[1:]:
+        name = re.search(r'(?m)^name = "([^"]+)"', block)
+        if name and name.group(1) in crates and not re.search(r"(?m)^source = ", block):
+            left.add(name.group(1))
+    return sorted(left)
 
 
 def cmd_update(args):
@@ -730,6 +760,23 @@ def set_aside(path):
     return aside
 
 
+def disarm(folder):
+    """Renames every `.vst3` or `.clap` inside a bundle set aside, at any depth, to `….old`, as
+    mxm-kit's `mxm_xtask::install` does: a host looks for plugins at any depth, and the module inside
+    a `.vst3` bundle is itself named `<name>.vst3` (Ableton Live 11 loaded one from a set-aside
+    bundle, 2026-10-16). A loaded module may be renamed, though not replaced or removed."""
+    if not folder.is_dir():
+        return
+    for entry in list(folder.iterdir()):
+        if entry.is_dir():
+            disarm(entry)
+        if entry.suffix in (".vst3", ".clap"):
+            try:
+                entry.rename(entry.with_name(entry.name + ".old"))
+            except OSError:
+                pass
+
+
 def clear_leftovers(destination):
     """What installs of `destination` left beside it: a cut-off copy, and every copy set aside that
     nothing holds any more. One a host still holds stays for a later install."""
@@ -768,7 +815,7 @@ def place(source, destination):
                 try:
                     remove(aside)
                 except OSError:
-                    pass  # a host holds it: it goes at a later install
+                    disarm(aside)  # a host holds it: it goes at a later install
     finally:
         try:
             remove(fresh)

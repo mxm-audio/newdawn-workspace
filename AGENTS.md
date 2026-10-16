@@ -32,7 +32,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 |---|---|---|
 | `newdawn/` | The DAW | `maxmcorp/newDAWn`, private until it is ready (2026-10-06); GPL-3.0 |
 | `kit/mxm-kit/` | The shared crates every instrument and the DAW use | `mxm-audio/mxm-kit`, MIT |
-| `kit/nice-plug/`, `kit/egui-baseview/`, `kit/baseview/` | Forks: upstream plus each `PATCHES.md`; baseview's (2026-10-07) draws Windows frames a busy host cannot starve | `mxm-audio`, ISC and MIT/Apache |
+| `kit/nice-plug/`, `kit/nice-plug-egui/`, `kit/egui-baseview/`, `kit/baseview/` | Forks: upstream plus each `PATCHES.md`; baseview's (2026-10-07) draws Windows frames a busy host cannot starve; nice-plug-egui's (2026-10-16) lets an editor keep only the keys it uses, the rest going to the host | `mxm-audio`, ISC and MIT/Apache |
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in; no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09) | `mxm-audio/mxm-player`, GPL-3.0 |
 | `instruments/<name>/` (11), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06) private until it is ready; `mxm-fx-eq-n` public since 2026-10-16 |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses | `mxm-audio/mxm-tools`, GPL-3.0 |
@@ -81,14 +81,14 @@ step that repeats across repositories, rather than a loop by hand:
   out of the per-user CLAP folder, where installs went before, once it is installed.
 - `each <command>`: any command in every repository.
 - `link kit [player] [<fork>…]` / `unlink`: build against the local mxm-kit, and the player and
-  the forks named (`nice-plug`, `egui-baseview`, `baseview`), instead of their main, for one change
+  the forks named (`nice-plug`, `nice-plug-egui`, `egui-baseview`, `baseview`), instead of their main, for one change
   across them and their users, built and checked before any of it is pushed (the owner,
   2026-10-15). `link` writes a marked block into the root
   `.cargo/config.toml`, which Cargo finds from every repository; `unlink` removes it and restores the
   lockfiles `link` changed. `push` refuses while linked. If the kit's version changed, run
   `cargo update -p <crate>` in the repository you build.
 - `--only <names>`: repositories, or the groups `newdawn`, `kit` (mxm-kit alone, as in `link` and
-  `bump`), `forks` (nice-plug, egui-baseview), `player`, `instruments`, `effects`, `plugins`, `tools`.
+  `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `player`, `instruments`, `effects`, `plugins`, `tools`.
 
 Each public repository still builds and tests alone from a fresh clone: nothing in one may need this
 folder, and its docs must not send a contributor here.
