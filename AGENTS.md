@@ -152,6 +152,9 @@ folder, and its docs must not send a contributor here.
 ## Disk and build output
 
 - C: is kept as empty as possible (the owner, 2026-10-06), so project work stays under `E:\newDAWn`.
+  **One exception, the pitch editor's clean-room worktree, `E:\newDAWn-cleanroom`** (the owner,
+  2026-10-16): beside the workspace, still on E:, so a `ws link` never reaches its builds and the
+  workspace's repository never sees it. It goes, with its `target/`, once its work is merged.
 - One build folder per repository, or one shared folder for checks across many; never one per
   worktree. The `build_output.py` hook in `~/.claude/hooks` warns, blocks on low disk space and lists
   stale folders. `python ~/.claude/hooks/build_output.py clean <folder>` empties one, keeping
