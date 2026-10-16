@@ -69,13 +69,16 @@ step that repeats across repositories, rather than a loop by hand:
   sessions push from other clones, and a relock or build of an old checkout pairs its old code
   with the new mains (2026-10-15). `pull` it, or merge one that has diverged.
 - `install`: bundles every plugin as checked out (release, into the shared `target-shared/`) and
-  installs it in this user's CLAP folder, where newDAWn and Bitwig find it; `--only` narrows it to
-  some plugins. A plugin keeps the keys it was built with, so a machine catches up with `pull`, then
-  `install`. **Every `cargo xtask bundle` installs its plugin there too** (the owner, 2026-10-13:
-  "So the latest ones are always in the daw and bitwig"), once the plugin is locked on a kit that
-  has it: mxm-kit's `mxm-xtask`, whose `AGENTS.md` has the rules. It goes on past a failure, exits
-  nonzero on one, and warns about an older copy in a folder newDAWn scans first (`CLAP_PATH`, the
-  system CLAP folder).
+  installs it, CLAP and VST3, in the standard plugin folders, where newDAWn, Bitwig and Ableton
+  find it: on Windows the system's (`C:\Program Files\Common Files\CLAP`, `…\VST3`), which this
+  user can write to; `MXM_CLAP_DIR` and `MXM_VST3_DIR` choose others (the owner, 2026-10-16: "Lets
+  keep it as standard as possible"). `--only` narrows it to some plugins. A plugin keeps the keys
+  it was built with, so a machine catches up with `pull`, then `install`. **Every `cargo xtask
+  bundle` installs its plugin there too** (the owner, 2026-10-13: "So the latest ones are always in
+  the daw and bitwig"), once the plugin is locked on a kit that has it: mxm-kit's `mxm-xtask`,
+  whose `AGENTS.md` has the rules. It goes on past a failure, exits nonzero on one, warns about an
+  older copy in a folder newDAWn scans first (`CLAP_PATH`, `VST3_PATH`), and takes a plugin's copy
+  out of the per-user CLAP folder, where installs went before, once it is installed.
 - `each <command>`: any command in every repository.
 - `link kit [player] [<fork>…]` / `unlink`: build against the local mxm-kit, and the player and
   the forks named (`nice-plug`, `egui-baseview`, `baseview`), instead of their main, for one change
@@ -136,6 +139,9 @@ folder, and its docs must not send a contributor here.
   Rust plugins leave per-thread destructors behind, and glibc 2.39 crashes on them at thread exit.
 - **Publishing needs the owner.** Creating a repository, pushing a tag or pushing to a public
   `main` is outward-facing: ask first.
+- **Every plugin is a CLAP and a VST3; no Linux-only format and no AAX** (the owner, 2026-10-16: "If
+  anybody wants the linux specific ones they can make it themselves"). The rules are mxm-kit's
+  `docs/plugin-conventions.md` (*Every plugin is a CLAP and a VST3*).
 - **Pre-alpha: nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
   releasing anything to anybody. No really."). There are no tags (2026-10-07) and no builds go to
   anyone. `repos.txt` records `public` or `private` for each repository; the private ones are

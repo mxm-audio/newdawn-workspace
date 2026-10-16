@@ -23,9 +23,9 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py update                      move each repository's mxm-audio dependencies to their
                                              current main and relock (no tags: the owner, 2026-10-07)
     python ws.py install                     bundle every plugin (release) as checked out and install
-                                             it in this user's CLAP folder, where newDAWn finds it;
-                                             --only narrows it to some plugins. A machine catches up
-                                             with `pull`, then `install`
+                                             it, CLAP and VST3, in the standard plugin folders (or
+                                             MXM_CLAP_DIR, MXM_VST3_DIR); --only narrows it to some
+                                             plugins. A machine catches up with `pull`, then `install`
 
 `update` and `install` fetch first and refuse a repository whose checkout is behind its upstream.
 
@@ -33,12 +33,14 @@ Every command takes --only <name,...>: repository names, or the groups newdawn, 
 forks (nice-plug, egui-baseview, baseview), player, instruments, effects, plugins (= instruments +
 effects), tools, ops, all (the default).
 """
+import glob
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -597,32 +599,103 @@ def cmd_update(args):
 # step, for every plugin at once. Since 2026-10-13 every `cargo xtask bundle` installs its plugin
 # too, in a plugin locked on a kit that has it; `install` still builds the ones nobody bundled.
 
-def clap_folder():
-    """This user's CLAP folder: newDAWn and the other hosts look there, and it needs no admin."""
+def plugin_folder(fmt):
+    """Where `fmt`, "CLAP" or "VST3", installs: the folder MXM_CLAP_DIR or MXM_VST3_DIR names, else
+    the one everyone uses, as mxm-kit's `mxm_xtask::install::folder` (the owner, 2026-10-16: "Lets
+    keep it as standard as possible"): on Windows the system's, which every host reads unconfigured
+    and which this user is given write access to once; on macOS and Linux this user's."""
+    named = os.environ.get(f"MXM_{fmt}_DIR")
+    if named:
+        return Path(named)
+    if os.name == "nt":
+        return Path(os.environ["COMMONPROGRAMFILES"]) / fmt
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Audio" / "Plug-Ins" / fmt
+    return Path.home() / f".{fmt.lower()}"
+
+
+def retired_clap_folder():
+    """This user's CLAP folder on Windows, where installs went before the system folder: an MXM
+    plugin's copy there goes once its install elsewhere has worked, or hosts list it twice."""
     if os.name == "nt":
         return Path(os.environ["LOCALAPPDATA"]) / "Programs" / "Common" / "CLAP"
-    if sys.platform == "darwin":
-        return Path.home() / "Library" / "Audio" / "Plug-Ins" / "CLAP"
-    return Path.home() / ".clap"
+    return None
 
 
-def found_first():
-    """The folders newDAWn scans before this user's (its `catalog::standard_folders`): a plugin
-    found twice keeps its first bundle, so a copy there hides the one installed."""
-    folders = [Path(p) for p in os.environ.get("CLAP_PATH", "").split(os.pathsep) if p]
-    if os.name == "nt" and os.environ.get("COMMONPROGRAMFILES"):
-        folders.append(Path(os.environ["COMMONPROGRAMFILES"]) / "CLAP")
+def scan_order(fmt):
+    """The folders newDAWn scans for `fmt`, in its order (its `catalog::standard_folders` and
+    `mxm_vst3_host::standard_folders`): a plugin found twice keeps its first bundle."""
+    folders = [Path(p) for p in os.environ.get(f"{fmt}_PATH", "").split(os.pathsep) if p]
+    if os.name == "nt":
+        folders += [Path(os.environ["COMMONPROGRAMFILES"]) / fmt,
+                    Path(os.environ["LOCALAPPDATA"]) / "Programs" / "Common" / fmt]
     elif sys.platform == "darwin":
-        folders.append(Path("/Library/Audio/Plug-Ins/CLAP"))
+        user = Path.home() / "Library" / "Audio" / "Plug-Ins" / fmt
+        system = Path("/Library/Audio/Plug-Ins") / fmt
+        folders += ([system, user] if fmt == "CLAP"
+                    else [user, system, Path("/Network/Library/Audio/Plug-Ins/VST3")])
+    else:
+        folders.append(Path.home() / f".{fmt.lower()}")
+        folders += ([Path("/usr/lib/clap")] if fmt == "CLAP"
+                    else [Path("/usr/lib/vst3"), Path("/usr/local/lib/vst3")])
     return folders
 
 
-def copies_in(folder, name):
-    """Every `name` in `folder` and its subfolders, which newDAWn's scan goes into as well."""
+def resolved(path):
+    """`path` as the file system resolves it (`..`, case, junctions), or as written."""
     try:
-        return list(folder.rglob(name))
+        return path.resolve(strict=True)
     except OSError:
+        return path
+
+
+def scanning_root(folder, order):
+    """Which of newDAWn's scan roots holds `folder`: the first that is it or one of its parents."""
+    folder = resolved(folder)
+    for at, root in enumerate(order):
+        root = resolved(root)
+        if folder == root or root in folder.parents:
+            return at
+    return None
+
+
+def found_first(fmt, installed):
+    """Every other bundle of `installed`'s name newDAWn finds before it, as mxm-kit's
+    `mxm_xtask::install::found_first`: in the folders it scans before the one holding `installed`,
+    and in that one, whose bundles it takes in sorted order."""
+    order = scan_order(fmt)
+    at = scanning_root(installed.parent, order)
+    if at is None:
         return []
+    found = [copy for root in order[:at] for copy in copies_in(root, installed.name)]
+    found += [copy for copy in copies_in(order[at], installed.name)
+              if resolved(copy) < resolved(installed)]
+    # Never the installed bundle itself, which an earlier root can reach through a junction.
+    return [copy for copy in found if resolved(copy) != resolved(installed)]
+
+
+def same_folder(a, b):
+    """Whether `a` and `b` may be one folder: told apart only when both exist and differ on disk,
+    so an install is never taken back out through another spelling of its own folder."""
+    try:
+        return os.path.samefile(a, b)
+    except OSError:
+        return True
+
+
+def copies_in(folder, name):
+    """Every `name` in `folder` and its subfolders, which newDAWn's scan goes into as well, but not
+    into a `.vst3` bundle, whose module carries the bundle's name."""
+    found = []
+    try:
+        for entry in folder.iterdir():
+            if entry.name == name:
+                found.append(entry)
+            elif entry.is_dir() and entry.suffix != ".vst3":
+                found += copies_in(entry, name)
+    except OSError:
+        pass
+    return found
 
 
 def bundles_of(path):
@@ -647,41 +720,85 @@ def remove(path):
         path.unlink()
 
 
-def place(source, destination):
-    """Copies a file, or a macOS bundle folder, over `destination` whole: beside it first, then
-    renamed over it, so a host never finds half of one and an old bundle is never merged into."""
-    if source.is_dir():
-        fresh = destination.with_name(destination.name + ".new")
-        old = destination.with_name(destination.name + ".old")
-        remove(fresh)
-        remove(old)
-        shutil.copytree(source, fresh, symlinks=True)
-        if destination.exists():
-            destination.rename(old)
+def set_aside(path):
+    """Renames what is at `path`, if anything, to `<name>.<stamp>.old` beside it, which Windows
+    allows for a plugin a host holds where replacing or removing it doesn't. Returns where it went."""
+    if not os.path.lexists(path):
+        return None
+    aside = path.with_name(f"{path.name}.{time.time_ns()}.old")
+    path.rename(aside)
+    return aside
+
+
+def clear_leftovers(destination):
+    """What installs of `destination` left beside it: a cut-off copy, and every copy set aside that
+    nothing holds any more. One a host still holds stays for a later install."""
+    for left in [destination.with_name(destination.name + ".tmp"),
+                 destination.with_name(destination.name + ".new"),
+                 *destination.parent.glob(glob.escape(destination.name) + ".*.old")]:
         try:
-            fresh.rename(destination)
+            remove(left)
         except OSError:
-            # The old bundle goes back: a failed install leaves what was installed.
-            if old.exists() and not destination.exists():
-                old.rename(destination)
-            remove(fresh)
-            raise
-        remove(old)
-        return
-    temp = destination.with_name(destination.name + ".tmp")
+            pass
+
+
+def place(source, destination):
+    """Copies a file or a bundle folder over `destination` whole: beside it first, then renamed in,
+    so a host never finds half of one and an old bundle is never merged into. A copy a host holds
+    is renamed aside first, as mxm-kit's `mxm_xtask::install` does, and goes at a later install."""
+    clear_leftovers(destination)
+    fresh = destination.with_name(destination.name + (".new" if source.is_dir() else ".tmp"))
     try:
-        shutil.copyfile(source, temp)
-        os.replace(temp, destination)
+        if source.is_dir():
+            shutil.copytree(source, fresh, symlinks=True)
+        else:
+            shutil.copyfile(source, fresh)
+        try:
+            os.replace(fresh, destination)
+        except OSError:
+            aside = set_aside(destination)
+            try:
+                os.replace(fresh, destination)
+            except OSError:
+                # What was installed goes back: a failed install leaves it.
+                if aside:
+                    aside.rename(destination)
+                raise
+            if aside:
+                try:
+                    remove(aside)
+                except OSError:
+                    pass  # a host holds it: it goes at a later install
     finally:
-        if temp.exists():
-            temp.unlink()
+        try:
+            remove(fresh)
+        except OSError:
+            pass
+
+
+def retire(bundle, folder):
+    """Takes `bundle`'s own CLAP and control map out of `folder`, by exact name, once it is
+    installed elsewhere; one a host holds is set aside as `.old`, which no host lists. Returns what
+    is still there."""
+    left = []
+    for name in (f"{bundle}.clap", f"{bundle}.control-map.json"):
+        path = folder / name
+        clear_leftovers(path)
+        try:
+            remove(path)
+        except OSError:
+            try:
+                set_aside(path)
+            except OSError:
+                left.append(path)
+    return left
 
 
 def cmd_install(args):
     """Bundles each plugin repository's plugins (release, from what is checked out) into one shared
-    target folder, so what they share compiles once, and installs each one that built into this
-    user's CLAP folder. Goes on past a failure and says, per plugin, installed or why not. A
-    repository behind its upstream is refused before anything builds."""
+    target folder, so what they share compiles once, and installs each one that built, CLAP and
+    VST3, in the plugin folders (`plugin_folder`). Goes on past a failure and says, per plugin,
+    installed or why not. A repository behind its upstream is refused before anything builds."""
     plugins = {n: v for n, v in repositories().items() if v[0] in ("instruments", "effects")}
     if "--only" in args:
         only = args[args.index("--only") + 1].split(",")
@@ -695,9 +812,9 @@ def cmd_install(args):
     # It installs each plugin itself, below, whichever kit the plugin is locked on: the kit's xtask
     # installing a bundle too (mxm-kit's `mxm-xtask`, 2026-10-13) would copy it twice.
     env = {**cargo_env(), "CARGO_TARGET_DIR": str(target), "MXM_INSTALL_CLAP": "0"}
-    destination = clap_folder()
-    destination.mkdir(parents=True, exist_ok=True)
-    results, hidden = [], []
+    destinations = {fmt: plugin_folder(fmt) for fmt in ("CLAP", "VST3")}
+    retired = retired_clap_folder()
+    results, hidden, left_behind = [], [], []
     refused = refuse_behind(plugins)
     for name, (group, path) in plugins.items():
         if name in refused:
@@ -707,11 +824,13 @@ def cmd_install(args):
             continue
         for package, bundle in bundles_of(path):
             built = target / "bundled" / f"{bundle}.clap"
+            built_vst3 = target / "bundled" / f"{bundle}.vst3"
             control_map = path / "target" / "bundled" / f"{bundle}.control-map.json"
             print(f"\n=== {bundle} ({name})", flush=True)
             # Only a fresh build is installed: what an earlier one left goes first.
             try:
                 remove(built)
+                remove(built_vst3)
                 remove(control_map)
             except OSError as error:
                 results.append((bundle, f"NOT INSTALLED: the last build's output can't be removed: "
@@ -728,14 +847,19 @@ def cmd_install(args):
             if code or not built.exists():
                 results.append((bundle, "NOT INSTALLED: the build failed"))
                 continue
+            destination = destinations["CLAP"]
             try:
+                destination.mkdir(parents=True, exist_ok=True)
                 place(built, destination / built.name)
             except OSError as error:
-                results.append((bundle, f"NOT INSTALLED: {error}. Close the hosts using it and "
-                                        "run install again"))
+                results.append((bundle, f"NOT INSTALLED: {error}. Close the hosts using it, or give "
+                                        "this user write access to that folder, and run install "
+                                        "again"))
                 continue
-            hidden += [copy for folder in found_first() if folder != destination
-                       for copy in copies_in(folder, built.name)]
+            hidden += found_first("CLAP", destination / built.name)
+            if retired and not same_folder(retired, destination):
+                left_behind += retire(bundle, retired)
+            problems = []
             # Its control map beside it, or none rather than an older one; said if even that fails.
             installed_map = destination / control_map.name
             try:
@@ -749,21 +873,32 @@ def cmd_install(args):
                 except OSError:
                     pass
                 left = "an older one is still beside it" if installed_map.exists() else "it has none"
-                results.append((bundle, f"INSTALLED, BUT NOT ITS CONTROL MAP ({left}): {error}. "
-                                        "Run install again"))
-                continue
-            results.append((bundle, "installed"))
+                problems.append(f"NOT ITS CONTROL MAP ({left}): {error}")
+            formats = "CLAP"
+            if built_vst3.exists():
+                try:
+                    destinations["VST3"].mkdir(parents=True, exist_ok=True)
+                    place(built_vst3, destinations["VST3"] / built_vst3.name)
+                    formats = "CLAP and VST3"
+                    hidden += found_first("VST3", destinations["VST3"] / built_vst3.name)
+                except OSError as error:
+                    problems.append(f"NOT ITS VST3: {error}")
+            results.append((bundle, f"installed, {formats}" if not problems else
+                            f"INSTALLED, BUT {'; '.join(problems)}. Run install again"))
     if not results:
         print("nothing to install")
         return 0
     print("\n" + "\n".join(f"{bundle:24} {what}" for bundle, what in results))
     if any(what.startswith(("installed", "INSTALLED")) for _, what in results):
-        print(f"\nInstalled in {destination}. Restart newDAWn to load them; Bitwig and other hosts "
-              "read that folder once it is among their plugin locations.")
+        print(f"\nInstalled in {destinations['CLAP']} and {destinations['VST3']}. Restart newDAWn "
+              "to load them; other hosts find them at their next scan.")
     for copy in hidden:
         print(f"WARNING: {copy} is found before the one installed, so newDAWn loads it instead: "
               "remove it (that folder may need an administrator)")
-    return 1 if any(what != "installed" for _, what in results) else 0
+    for left in left_behind:
+        print(f"WARNING: the older copy {left} couldn't be removed, so hosts reading that folder "
+              "list the plugin twice: remove it once nothing holds it")
+    return 1 if any(not what.startswith("installed") for _, what in results) else 0
 
 
 COMMANDS = {"clone": cmd_clone, "status": cmd_status, "tag": cmd_tag, "reach": cmd_reach, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
