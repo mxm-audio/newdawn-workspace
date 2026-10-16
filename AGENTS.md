@@ -34,7 +34,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `kit/mxm-kit/` | The shared crates every instrument and the DAW use | `mxm-audio/mxm-kit`, MIT |
 | `kit/nice-plug/`, `kit/egui-baseview/`, `kit/baseview/` | Forks: upstream plus each `PATCHES.md`; baseview's (2026-10-07) draws Windows frames a busy host cannot starve | `mxm-audio`, ISC and MIT/Apache |
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in; no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09) | `mxm-audio/mxm-player`, GPL-3.0 |
-| `instruments/<name>/` (11), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06) and `mxm-fx-eq-n` (2026-10-13) private until they are ready |
+| `instruments/<name>/` (11), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06) private until it is ready; `mxm-fx-eq-n` public since 2026-10-16 |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
 | `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
@@ -139,7 +139,7 @@ folder, and its docs must not send a contributor here.
 - **Pre-alpha: nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
   releasing anything to anybody. No really."). There are no tags (2026-10-07) and no builds go to
   anyone. `repos.txt` records `public` or `private` for each repository; the private ones are
-  `newdawn`, `mxm-model-drums` and `mxm-fx-eq-n` (private until they are ready) and `ops`.
+  `newdawn`, `mxm-model-drums` (private until it is ready) and `ops`.
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.
 
