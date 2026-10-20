@@ -19,7 +19,7 @@ python ws.py status     # one row per repository
 ```
 
 `ws.py` does one step in every repository at once (check, commit, push, pull, link the local kit,
-bump a tag); `AGENTS.md` has the list. On macOS and Linux the command is `python3`; on Windows,
+relock on the current mains); `AGENTS.md` has the list. On macOS and Linux the command is `python3`; on Windows,
 `.\ws` runs it too.
 
 The toolchain is Rust 1.98.0, the version CI uses: `rustup toolchain install 1.98.0 -c clippy -c

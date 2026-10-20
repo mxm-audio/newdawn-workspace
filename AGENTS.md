@@ -34,6 +34,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `kit/mxm-kit/` | The shared crates every instrument and the DAW use | `mxm-audio/mxm-kit`, MIT |
 | `kit/nice-plug/`, `kit/nice-plug-egui/`, `kit/egui-baseview/`, `kit/baseview/` | Forks: upstream plus each `PATCHES.md`; baseview's (2026-10-07) draws Windows frames a busy host cannot starve; nice-plug-egui's (2026-10-16) lets an editor keep only the keys it uses, the rest going to the host | `mxm-audio`, ISC and MIT/Apache |
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in; no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09) | `mxm-audio/mxm-player`, GPL-3.0 |
+| `format/tutti/` | tutti, the open audio project format (the owner, 2026-10-20): its spec, schema, examples, docs and reference crates; newDAWn is its first consumer. No file IO in the core, so it builds for the web too | `mxm-audio/tutti`, MIT |
 | `instruments/<name>/` (11), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06) private until it is ready; `mxm-fx-eq-n` public since 2026-10-16 |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
@@ -80,15 +81,16 @@ step that repeats across repositories, rather than a loop by hand:
   older copy in a folder newDAWn scans first (`CLAP_PATH`, `VST3_PATH`), and takes a plugin's copy
   out of the per-user CLAP folder, where installs went before, once it is installed.
 - `each <command>`: any command in every repository.
-- `link kit [player] [<fork>…]` / `unlink`: build against the local mxm-kit, and the player and
-  the forks named (`nice-plug`, `nice-plug-egui`, `egui-baseview`, `baseview`), instead of their main, for one change
+- `link kit [player] [format] [<fork>…]` / `unlink`: build against the local mxm-kit, the player,
+  the format (tutti) and the forks named (`nice-plug`, `nice-plug-egui`, `egui-baseview`, `baseview`), instead of their main, for one change
   across them and their users, built and checked before any of it is pushed (the owner,
   2026-10-15). `link` writes a marked block into the root
   `.cargo/config.toml`, which Cargo finds from every repository; `unlink` removes it and restores the
   lockfiles `link` changed. `push` refuses while linked. If the kit's version changed, run
   `cargo update -p <crate>` in the repository you build.
 - `--only <names>`: repositories, or the groups `newdawn`, `kit` (mxm-kit alone, as in `link` and
-  `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `player`, `instruments`, `effects`, `plugins`, `tools`.
+  `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `player`, `format` (tutti),
+  `instruments`, `effects`, `plugins`, `tools`.
 
 Each public repository still builds and tests alone from a fresh clone: nothing in one may need this
 folder, and its docs must not send a contributor here.
@@ -168,6 +170,7 @@ folder, and its docs must not send a contributor here.
 | `newdawn/AGENTS.md` | The DAW: its contracts and its own chain; the vision and open questions in its `docs/vision.md`, the decisions in its `NOTES.md` |
 | `kit/mxm-kit/AGENTS.md` | The kit's crates, their MSRVs, the design system and theory docs |
 | `player/mxm-player/AGENTS.md` | MXM Player and its test harness |
+| `format/tutti/AGENTS.md` | tutti, the open audio project format: the spec and its versions, the schema, the examples and conformance fixtures, the docs, the reference crates and the JavaScript package |
 | `instruments/<name>/AGENTS.md`, `effects/<name>/AGENTS.md` | One product each, from the shared plugin conventions down |
 | `tools/mxm-tools/AGENTS.md` | The listener, room simulator and measurement tools |
 | `wsl/AGENTS.md` | The Linux distros, and how to run a repository's checks in them |

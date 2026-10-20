@@ -8,6 +8,7 @@ kit/mxm-kit https://github.com/mxm-audio/mxm-kit.git public
 kit/nice-plug https://github.com/mxm-audio/nice-plug.git public
 kit/nice-plug-egui https://github.com/mxm-audio/nice-plug-egui.git public
 player/mxm-player https://github.com/mxm-audio/mxm-player.git public
+format/tutti https://github.com/mxm-audio/tutti.git public  # the open audio project format (the owner, 2026-10-20)
 instruments/mxm-creative-sampler https://github.com/mxm-audio/mxm-creative-sampler.git public
 instruments/mxm-drum-machine https://github.com/mxm-audio/mxm-drum-machine.git public
 instruments/mxm-model-drums https://github.com/mxm-audio/mxm-model-drums.git private  # private until it is ready (the owner, 2026-10-06)

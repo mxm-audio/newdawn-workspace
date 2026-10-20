@@ -2,6 +2,7 @@
 # or machine-local.
 /newdawn/
 /kit/*/
+/format/*/
 /player/*/
 /instruments/*/
 /effects/*/

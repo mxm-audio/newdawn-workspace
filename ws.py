@@ -5,7 +5,7 @@ tired real soon." Each repository stays standalone (a contributor clones one and
 this); `ws` is how the workspace does the same step everywhere at once.
 
     python ws.py clone                       clone every repository in repos.txt that isn't here yet
-    python ws.py status                      one row per repository: changes, unpushed, tag, pins
+    python ws.py status                      one row per repository: changes, unpushed, last commit, pins
     python ws.py reach                       what each changed repository's change reaches: the
                                              packages to test, or "docs only" / "comments only"
     python ws.py check                       fmt, clippy and the tests the change reaches, Windows
@@ -15,11 +15,11 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py tag                         refused: no tags (the owner, 2026-10-07)
     python ws.py pull                        fast-forward every repository
     python ws.py each <command ...>          run a command in every repository
-    python ws.py link kit [player] [nice-plug] [nice-plug-egui] [egui-baseview] [baseview]
-                                             build against the local copies instead of their tags,
+    python ws.py link kit [player] [format] [nice-plug] [nice-plug-egui] [egui-baseview] [baseview]
+                                             build against the local copies instead of their mains,
                                              for a change across repositories (a fork's version must
                                              match what each repository requires)
-    python ws.py unlink                      back to the tags; restores the lockfiles `link` touched
+    python ws.py unlink                      back to the locked mains; restores the lockfiles `link` touched
     python ws.py update                      move each repository's mxm-audio dependencies to their
                                              current main and relock (no tags: the owner, 2026-10-07)
     python ws.py install                     bundle every plugin (release) as checked out and install
@@ -30,8 +30,8 @@ this); `ws` is how the workspace does the same step everywhere at once.
 `update` and `install` fetch first and refuse a repository whose checkout is behind its upstream.
 
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
-forks (nice-plug, nice-plug-egui, egui-baseview, baseview), player, instruments, effects, plugins (= instruments +
-effects), tools, ops, all (the default).
+forks (nice-plug, nice-plug-egui, egui-baseview, baseview), player, format (= tutti), instruments,
+effects, plugins (= instruments + effects), tools, ops, all (the default).
 """
 import glob
 import json
@@ -49,7 +49,7 @@ ORG = "https://github.com/mxm-audio"
 REPO_LIST = ROOT / "repos.txt"
 CONFIG = ROOT / ".cargo" / "config.toml"
 LINK_STATE = ROOT / ".cargo" / "ws-link.json"
-GROUPS = ["newdawn", "kit", "player", "instruments", "effects", "tools", "ops"]
+GROUPS = ["newdawn", "kit", "player", "format", "instruments", "effects", "tools", "ops"]
 # `link` owns only this block of the root config; anything else there (sccache, say) is kept.
 BEGIN, END = "# >>> ws link", "# <<< ws link"
 
@@ -156,8 +156,10 @@ def state(path):
     # Dependencies follow main (the owner, 2026-10-07): the lock's commit is the pin.
     kit = re.search(r'mxm-audio/mxm-kit\?[^#"]*#([0-9a-f]{7})', text)
     player = re.search(r'mxm-audio/mxm-player\?[^#"]*#([0-9a-f]{7})', text)
+    tutti = re.search(r'mxm-audio/tutti\?[^#"]*#([0-9a-f]{7})', text)
     return {"dirty": len(dirty), "ahead": int(ahead or 0), "behind": int(behind or 0), "head": head or "-",
             "kit": kit.group(1) if kit else "-", "player": player.group(1) if player else "-",
+            "tutti": tutti.group(1) if tutti else "-",
             "upstream": bool(git(path, "rev-parse", "--abbrev-ref", "@{u}"))}
 
 
@@ -230,11 +232,12 @@ def cmd_status(args):
     with ThreadPoolExecutor(8) as pool:
         rows = list(pool.map(lambda item: (item[0], item[1][0], state(item[1][1])), repos.items()))
     print(f"{'repository':24} {'group':12} {'status':11} {'changed':>7} {'ahead':>5} {'behind':>6}  "
-          f"{'last commit':19} {'kit':8} player")
+          f"{'last commit':19} {'kit':8} {'player':8} tutti")
     for name, group, s in rows:
         flag = "" if s["upstream"] else "  (no remote)"
         print(f"{name:24} {group:12} {status_of(repos[name][1]):11} {s['dirty'] or '':>7} "
-              f"{s['ahead'] or '':>5} {s['behind'] or '':>6}  {s['head']:19} {s['kit']:8} {s['player']}{flag}")
+              f"{s['ahead'] or '':>5} {s['behind'] or '':>6}  {s['head']:19} {s['kit']:8} {s['player']:8} "
+              f"{s['tutti']}{flag}")
     shadowed = {name: unused_forks(path) for name, (group, path) in repos.items() if unused_forks(path)}
     for name, forks in shadowed.items():
         print(f"\nWARNING {name}: Cargo.lock does not use the {', '.join(forks)} fork (a newer upstream "
@@ -501,11 +504,11 @@ def crates_of(repo_path):
 def cmd_link(args):
     names = [a for a in args if not a.startswith("--")] or ["kit"]
     repos = repositories()
-    sources = {"kit": "mxm-kit", "player": "mxm-player"}
+    sources = {"kit": "mxm-kit", "player": "mxm-player", "format": "tutti"}
     if linked():
         raise SystemExit("already linked: `python ws.py unlink` first")
     lines = ["# Written by `python ws.py link`: every repository below builds against these local",
-             "# repositories instead of their tags. `python ws.py unlink` removes this block; never push",
+             "# repositories instead of their mains. `python ws.py unlink` removes this block; never push",
              "# while it is here (`ws push` refuses).", ""]
     forks = []
     for n in names:
@@ -594,8 +597,8 @@ def cmd_update(args):
     """Moves each selected repository's mxm-audio dependencies (kit, player, other products' crates,
     the forks) to their current main: removes only those packages from Cargo.lock and lets Cargo
     resolve them again, every crates.io package staying pinned. Runs from outside the workspace, so
-    a `ws link` cannot put local paths into a lock. Update upstream first: forks, kit, player, the
-    products whose crates others use, tools, then the rest. A repository behind its upstream is
+    a `ws link` cannot put local paths into a lock. Update upstream first: forks, kit, player,
+    format, the products whose crates others use, tools, then the rest. A repository behind its upstream is
     refused, and the exit is nonzero if any is refused or doesn't resolve."""
     neutral = Path(os.environ.get("TEMP", "/tmp"))
     repos = selected(args)
