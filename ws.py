@@ -22,6 +22,9 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py unlink                      back to the locked mains; restores the lockfiles `link` touched
     python ws.py update                      move each repository's mxm-audio dependencies to their
                                              current main and relock (no tags: the owner, 2026-10-07)
+    python ws.py copy                        take each copy one repository keeps of another's folder
+                                             again (COPIES), with its manifest: the web tracker's of
+                                             newDAWn's tracker cases and songs, newDAWn's of its songs
     python ws.py install                     bundle every plugin (release) as checked out and install
                                              it, CLAP and VST3, in the standard plugin folders (or
                                              MXM_CLAP_DIR, MXM_VST3_DIR); --only narrows it to some
@@ -184,9 +187,14 @@ def unused_forks(path):
 
 # Folders one repository keeps a copy of from another, the copy beside a `MANIFEST.json` naming
 # the commit it came from and the hash of what it copied: `status` warns when the source has moved
-# on. The web tracker's copy of newDAWn's tracker cases (the owner, 2026-10-21: the two trackers
-# kept in sync, interface and features).
-COPIES = [("newdawn/tests/tracker-cases", "apps/mxm-tracker/tests/tracker-cases")]
+# on, and `copy` takes them again. The web tracker's copy of newDAWn's tracker cases (the owner,
+# 2026-10-21: the two trackers kept in sync, interface and features), and the round trip's songs
+# (newDAWn's `plans/plan-web-tracker.md`, W7): the web tracker's to newDAWn, newDAWn's back.
+COPIES = [
+    ("newdawn/tests/tracker-cases", "apps/mxm-tracker/tests/tracker-cases"),
+    ("apps/mxm-tracker/fixtures/to-newdawn", "newdawn/tests/web-tracker-songs/to-newdawn"),
+    ("newdawn/tests/web-tracker-songs/from-newdawn", "apps/mxm-tracker/fixtures/from-newdawn"),
+]
 
 
 def folder_hash(folder):
@@ -210,6 +218,30 @@ def stale_copies():
             continue
         if json.loads(manifest.read_text(encoding="utf-8")).get("hash") != folder_hash(ROOT / source):
             yield source, copy
+
+
+def cmd_copy(args):
+    """Takes each copy of `COPIES` again whose source is here: the copy emptied, the source's files
+    copied whole, and a manifest naming the commit that last changed the source (and whether it
+    had uncommitted changes there) and its hash."""
+    paths = [p for _, p in repositories().values() if p.is_dir()]
+    for source, copy in COPIES:
+        repo = next((p for p in paths if (ROOT / source).is_relative_to(p)), None)
+        if not (ROOT / source).is_dir() or repo is None or not any((ROOT / copy).is_relative_to(p) for p in paths):
+            continue
+        # The commit that last changed the source, so a commit elsewhere in its repository leaves
+        # the manifest as it is.
+        where = (ROOT / source).relative_to(repo).as_posix()
+        commit = git(repo, "log", "-1", "--format=%H", "--", where) or git(repo, "rev-parse", "HEAD")
+        dirty = bool(git(repo, "status", "--porcelain", "--", where))
+        shutil.rmtree(ROOT / copy, ignore_errors=True)
+        shutil.copytree(ROOT / source, ROOT / copy, ignore=shutil.ignore_patterns("MANIFEST.json"))
+        manifest = {"from": commit, "hash": folder_hash(ROOT / source)}
+        if dirty:
+            manifest["uncommitted"] = True
+        text = json.dumps(manifest, indent=2) + chr(10)
+        (ROOT / copy / "MANIFEST.json").write_bytes(text.encode("utf-8"))
+        print(f"{copy}: from {source} at {commit[:7]}{' (with uncommitted changes)' if dirty else ''}")
 
 
 def changed(repos):
@@ -987,7 +1019,7 @@ def cmd_install(args):
 
 COMMANDS = {"clone": cmd_clone, "status": cmd_status, "tag": cmd_tag, "reach": cmd_reach, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
             "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "update": cmd_update,
-            "install": cmd_install}
+            "install": cmd_install, "copy": cmd_copy}
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:

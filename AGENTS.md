@@ -60,7 +60,9 @@ step that repeats across repositories, rather than a loop by hand:
 
 - `status`: one row per repository (changed files, unpushed and behind, last commit, the kit and player commits its lock
   pins). Start here. It warns when a copy one repository keeps of another's folder differs from
-  it (`COPIES`: the web tracker's of newDAWn's tracker cases). `clone` fetches any repository in `repos.txt` that isn't here.
+  it (`COPIES`: the web tracker's of newDAWn's tracker cases, and the round trip's songs each
+  way), and **`copy` takes every copy again**, its manifest naming the commit that last changed
+  the source. `clone` fetches any repository in `repos.txt` that isn't here.
 - `reach`: what each repository's uncommitted or unpushed change reaches: "docs only", "comments
   only", or the packages to test (the changed ones and everything using them).
 - `check`: fmt, then clippy and the fast-tier tests of just those packages, Windows only. A
