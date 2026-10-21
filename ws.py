@@ -34,6 +34,7 @@ forks (nice-plug, nice-plug-egui, egui-baseview, baseview), player, format (= tu
 effects, plugins (= instruments + effects), tools, apps (the web tracker), ops, all (the default).
 """
 import glob
+import hashlib
 import json
 import os
 import re
@@ -181,6 +182,36 @@ def unused_forks(path):
     return [name for name in blocks if name in FORKS]
 
 
+# Folders one repository keeps a copy of from another, the copy beside a `MANIFEST.json` naming
+# the commit it came from and the hash of what it copied: `status` warns when the source has moved
+# on. The web tracker's copy of newDAWn's tracker cases (the owner, 2026-10-21: the two trackers
+# kept in sync, interface and features).
+COPIES = [("newdawn/tests/tracker-cases", "apps/mxm-tracker/tests/tracker-cases")]
+
+
+def folder_hash(folder):
+    """A folder's hash as `COPIES` compares it: SHA-256 over its files but `MANIFEST.json`, in the
+    order of their paths from the folder (with /), each as its path, a NUL, its bytes with CRLF as
+    LF and a NUL, so a checkout's line ends never count. The copying side computes the same."""
+    digest = hashlib.sha256()
+    files = [p for p in folder.rglob("*") if p.is_file() and p.name != "MANIFEST.json"]
+    for path in sorted(files, key=lambda p: p.relative_to(folder).as_posix()):
+        digest.update(path.relative_to(folder).as_posix().encode() + b"\0")
+        digest.update(path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return digest.hexdigest()
+
+
+def stale_copies():
+    """The (source, copy) pairs of `COPIES` whose copy's manifest names another hash than the
+    source has now; none where either side isn't here."""
+    for source, copy in COPIES:
+        manifest = ROOT / copy / "MANIFEST.json"
+        if not (ROOT / source).is_dir() or not manifest.exists():
+            continue
+        if json.loads(manifest.read_text(encoding="utf-8")).get("hash") != folder_hash(ROOT / source):
+            yield source, copy
+
+
 def changed(repos):
     with ThreadPoolExecutor(8) as pool:
         states = dict(zip(repos, pool.map(lambda r: state(r[1]), repos.values())))
@@ -242,6 +273,9 @@ def cmd_status(args):
     for name, forks in shadowed.items():
         print(f"\nWARNING {name}: Cargo.lock does not use the {', '.join(forks)} fork (a newer upstream "
               f"release won): refresh the fork onto it, then relock. See the fork's PATCHES.md.")
+    for source, copy in stale_copies():
+        print(f"\nWARNING {copy} differs from {source}, which it copies: copy it again (its "
+              f"repository's AGENTS.md says how), and bring what changed into it.")
     here = {p.relative_to(ROOT).as_posix() for _, p in repositories().values()}
     unlisted = sorted(here - set(listed()))
     if unlisted:
