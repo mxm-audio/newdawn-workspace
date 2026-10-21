@@ -331,6 +331,13 @@ def run_in(path, command, log=None):
 DOC_SUFFIXES = {".md", ".txt", ".html", ".png", ".svg", ".jpg", ".pdf"}
 DOC_NAMES = {"LICENSE", "NOTICE", "TRADEMARKS", "CONTRIBUTING", "README"}
 EVERYTHING = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo/config.toml"}
+# Data a package's tests read from outside the package's own folder, by its folder from the
+# workspace: a change there reaches that package. The tracker's shared cases, which newdawn-ui's
+# keyboard tests run, and the round trip's songs, which newdawn-protocol's tests open.
+READ_BY = {
+    "newdawn/tests/tracker-cases": "newdawn-ui",
+    "newdawn/tests/web-tracker-songs": "newdawn-protocol",
+}
 
 
 def cargo_program():
@@ -417,6 +424,9 @@ def reach(path):
         owners = [(len(folder), name) for name, (folder, _) in pkgs.items()
                   if folder in ("", ".") or f == folder or f.startswith(folder + "/")]
         owners = [o for o in owners if o[0] > 0] or owners
+        where = (path / f).relative_to(ROOT).as_posix() if (path / f).is_relative_to(ROOT) else f
+        owners = owners or [(1, name) for folder, name in READ_BY.items()
+                            if where.startswith(folder + "/") and name in pkgs]
         if f == "bundler.toml":
             owners = [(1, name) for name in pkgs if (path / "bundler.toml").exists()
                       and f"[{name}]" in (path / "bundler.toml").read_text(encoding="utf-8")]

@@ -64,7 +64,9 @@ step that repeats across repositories, rather than a loop by hand:
   way), and **`copy` takes every copy again**, its manifest naming the commit that last changed
   the source. `clone` fetches any repository in `repos.txt` that isn't here.
 - `reach`: what each repository's uncommitted or unpushed change reaches: "docs only", "comments
-  only", or the packages to test (the changed ones and everything using them).
+  only", or the packages to test (the changed ones and everything using them). Data a package's
+  tests read from outside its folder reaches it too (`READ_BY`: the tracker's shared cases
+  newdawn-ui's, the round trip's songs newdawn-protocol's).
 - `check`: fmt, then clippy and the fast-tier tests of just those packages, Windows only. A
   plugin's `host-tests` (the slow tier) run only on purpose, for an audible change.
 - `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.
