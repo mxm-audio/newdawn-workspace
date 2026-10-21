@@ -31,7 +31,7 @@ this); `ws` is how the workspace does the same step everywhere at once.
 
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
 forks (nice-plug, nice-plug-egui, egui-baseview, baseview), player, format (= tutti), instruments,
-effects, plugins (= instruments + effects), tools, ops, all (the default).
+effects, plugins (= instruments + effects), tools, apps (the web tracker), ops, all (the default).
 """
 import glob
 import json
@@ -49,7 +49,7 @@ ORG = "https://github.com/mxm-audio"
 REPO_LIST = ROOT / "repos.txt"
 CONFIG = ROOT / ".cargo" / "config.toml"
 LINK_STATE = ROOT / ".cargo" / "ws-link.json"
-GROUPS = ["newdawn", "kit", "player", "format", "instruments", "effects", "tools", "ops"]
+GROUPS = ["newdawn", "kit", "player", "format", "instruments", "effects", "tools", "apps", "ops"]
 # `link` owns only this block of the root config; anything else there (sccache, say) is kept.
 BEGIN, END = "# >>> ws link", "# <<< ws link"
 

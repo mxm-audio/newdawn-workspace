@@ -32,4 +32,5 @@ effects/mxm-fx-oldify https://github.com/mxm-audio/mxm-fx-oldify.git public
 effects/mxm-grain-fx https://github.com/mxm-audio/mxm-grain-fx.git public
 effects/mxm-shimmer https://github.com/mxm-audio/mxm-shimmer.git public
 tools/mxm-tools https://github.com/mxm-audio/mxm-tools.git public
+apps/mxm-tracker https://github.com/mxm-audio/mxm-tracker.git private  # the web tracker, private until it is ready (the owner, 2026-10-21)
 ops https://github.com/mxm-audio/newdawn-ops private  # the owner's private tooling, never public

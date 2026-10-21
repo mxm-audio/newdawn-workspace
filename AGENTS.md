@@ -37,6 +37,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `format/tutti/` | tutti, the open audio project format (the owner, 2026-10-20): its spec, schema, examples, docs and reference crates; newDAWn is its first consumer. No file IO in the core, so it builds for the web too | `mxm-audio/tutti`, MIT |
 | `instruments/<name>/` (11), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06) private until it is ready; `mxm-fx-eq-n` public since 2026-10-16 |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses | `mxm-audio/mxm-tools`, GPL-3.0 |
+| `apps/mxm-tracker/` | MXM Tracker, the web tracker: newDAWn's tracker on a phone, in step with it, its songs tutti projects; mainly a trial run of the format (the owner, 2026-10-21) | `mxm-audio/mxm-tracker`, GPL-3.0, private until it is ready |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
 | `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
@@ -82,7 +83,7 @@ step that repeats across repositories, rather than a loop by hand:
   out of the per-user CLAP folder, where installs went before, once it is installed.
 - `each <command>`: any command in every repository.
 - `link kit [player] [format] [<fork>…]` / `unlink`: build against the local mxm-kit, the player,
-  the format (tutti) and the forks named (`nice-plug`, `nice-plug-egui`, `egui-baseview`, `baseview`), instead of their main, for one change
+  the format (tutti), any other repository by its name (`mxm-creative-sampler`) and the forks named (`nice-plug`, `nice-plug-egui`, `egui-baseview`, `baseview`), instead of their main, for one change
   across them and their users, built and checked before any of it is pushed (the owner,
   2026-10-15). `link` writes a marked block into the root
   `.cargo/config.toml`, which Cargo finds from every repository; `unlink` removes it and restores the
@@ -90,7 +91,7 @@ step that repeats across repositories, rather than a loop by hand:
   `cargo update -p <crate>` in the repository you build.
 - `--only <names>`: repositories, or the groups `newdawn`, `kit` (mxm-kit alone, as in `link` and
   `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `player`, `format` (tutti),
-  `instruments`, `effects`, `plugins`, `tools`.
+  `instruments`, `effects`, `plugins`, `tools`, `apps` (the web tracker).
 
 Each public repository still builds and tests alone from a fresh clone: nothing in one may need this
 folder, and its docs must not send a contributor here.
@@ -147,7 +148,7 @@ folder, and its docs must not send a contributor here.
 - **Pre-alpha: nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
   releasing anything to anybody. No really."). There are no tags (2026-10-07) and no builds go to
   anyone. `repos.txt` records `public` or `private` for each repository; the private ones are
-  `newdawn`, `mxm-model-drums` (private until it is ready) and `ops`.
+  `newdawn`, `mxm-model-drums` and `mxm-tracker` (private until they are ready) and `ops`.
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.
 
