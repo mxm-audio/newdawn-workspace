@@ -30,14 +30,14 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 
 | Path | What | Repository |
 |---|---|---|
-| `newdawn/` | The DAW | `maxmcorp/newDAWn`, private until it is ready (2026-10-06); GPL-3.0 |
+| `newdawn/` | The DAW; after version 1.0 (2026-10-25) | `maxmcorp/newDAWn`, private until it is ready (2026-10-06); GPL-3.0 |
 | `kit/mxm-kit/` | The shared crates every instrument and the DAW use | `mxm-audio/mxm-kit`, MIT |
 | `kit/nice-plug/`, `kit/nice-plug-egui/`, `kit/egui-baseview/`, `kit/baseview/` | Forks: upstream plus each `PATCHES.md`; baseview's (2026-10-07) draws Windows frames a busy host cannot starve; nice-plug-egui's (2026-10-16) lets an editor keep only the keys it uses, the rest going to the host | `mxm-audio`, ISC and MIT/Apache |
-| `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in; no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09), and tutti projects, its setup saved and opened in the format newDAWn uses (2026-10-21) | `mxm-audio/mxm-player`, GPL-3.0 |
-| `format/tutti/` | tutti, the open audio project format (the owner, 2026-10-20): its spec, schema, examples, docs and reference crates; newDAWn is its first consumer. No file IO in the core, so it builds for the web too | `mxm-audio/tutti`, MIT |
+| `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in, and in version 1.0 a standalone host (2026-10-25); no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09), and tutti projects, its setup saved and opened in the format newDAWn uses (2026-10-21) | `mxm-audio/mxm-player`, GPL-3.0 |
+| `format/tutti/` | tutti, the open audio project format (the owner, 2026-10-20): its spec, schema, examples, docs and reference crates; newDAWn is its first consumer, MXM Player its first in version 1.0 (2026-10-25). No file IO in the core, so it builds for the web too | `mxm-audio/tutti`, MIT |
 | `instruments/<name>/` (11), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06) private until it is ready; `mxm-fx-eq-n` public since 2026-10-16 |
-| `tools/mxm-tools/` | The listener, room simulator and measurement harnesses | `mxm-audio/mxm-tools`, GPL-3.0 |
-| `apps/mxm-tracker/` | MXM Tracker, the web tracker: newDAWn's tracker on a phone, in step with it, its songs tutti projects; mainly a trial run of the format (the owner, 2026-10-21) | `mxm-audio/mxm-tracker`, GPL-3.0, private until it is ready |
+| `tools/mxm-tools/` | The listener, room simulator and measurement harnesses; in version 1.0 (2026-10-25) | `mxm-audio/mxm-tools`, GPL-3.0 |
+| `apps/mxm-tracker/` | MXM Tracker, the web tracker: newDAWn's tracker on a phone, in step with it, its songs tutti projects; mainly a trial run of the format (the owner, 2026-10-21); after version 1.0 | `mxm-audio/mxm-tracker`, GPL-3.0, private until it is ready |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
 | `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
@@ -71,7 +71,7 @@ step that repeats across repositories, rather than a loop by hand:
   plugin's `host-tests` (the slow tier) run only on purpose, for an audible change.
 - `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.
 - `update`: moves each repository's mxm-audio dependencies to their current `main` and relocks;
-  every crates.io package stays pinned. `tag` is refused: no tags (2026-10-07).
+  every crates.io package stays pinned. `tag` is refused: the only tags are a release's, made by its release build (2026-10-25).
 - **`update` and `install` fetch first and refuse a repository behind its upstream**: other
   sessions push from other clones, and a relock or build of an old checkout pairs its old code
   with the new mains (2026-10-15). `pull` it, or merge one that has diverged.
@@ -120,7 +120,9 @@ folder, and its docs must not send a contributor here.
   2026-10-06: "Just work on windows and then test the rest later. These runs takes faaar to long").
   Before a push: `cargo fmt --all -- --check`, `cargo clippy` and the tests the change reaches, on
   Windows, once. No Linux (WSL) or macOS run, and no waiting on CI, during the work: those come in
-  one batch when the owner asks. Code stays cross-platform all the same.
+  one batch when the owner asks. Code stays cross-platform all the same. **For version 1.0 the owner
+  has asked** (2026-10-25): the batch runs at the end of each stage of ops' `plans/plan-v1-release.md`,
+  and on every release candidate; cite that in `MXM_GATE_OK`.
 - **CI runs only when started by hand** (the owner, 2026-10-07; tags no longer start it either).
 - **Test a minimum, smartly** (the owner, 2026-10-06: "Development time is far more important than
   0 bugs on all platforms at this point"; earlier: "You have a tendency to overtest each step, dont
@@ -129,7 +131,9 @@ folder, and its docs must not send a contributor here.
   `~/.claude/hooks/no_unnecessary_builds.py` blocks builds and tests on the Mac or in WSL, waiting on
   CI, loops across repositories, any build for a docs-only change, a test or clippy run wider than
   `ws reach`, and the same command again with nothing changed. Only when the owner asks for more in
-  the conversation: put `MXM_GATE_OK='<their words>'` in the command.
+  the conversation: put `MXM_GATE_OK='<their words>'` in the command. A release is the exception:
+  it passes the full gates of `plan-v1-release.md` §3 (the owner, 2026-10-25: "Everything should
+  be stable and tested").
 - **Bit-exact pins are Windows'.** Golden digests and recorded renders hold Windows' bits, because
   each platform's maths library rounds differently. Elsewhere a test compares within rounding or
   skips the pin (the owner, 2026-10-06).
@@ -142,17 +146,24 @@ folder, and its docs must not send a contributor here.
   an edit or a mouse drag**. A change to the keys lands in both, or in neither. The DAW's panel keys and its tracker's note-entry piano sit in the same
   keymap file as host keys, not jobs (2026-10-08): a change to them is the DAW's alone.
 - **Never unmap a plugin's library on Linux.** Load every plugin through `mxm_player::entry::load`,
-  or a fork of it that keeps its `RTLD_NODELETE` (newDAWn's `newdawn_engine::load_entry`; the
-  player is likely to be phased out, the owner, 2026-10-07), never `PluginEntry::load` directly:
+  or a fork of it that keeps its `RTLD_NODELETE` (newDAWn's `newdawn_engine::load_entry`), never
+  `PluginEntry::load` directly:
   Rust plugins leave per-thread destructors behind, and glibc 2.39 crashes on them at thread exit.
 - **Publishing needs the owner.** Creating a repository, pushing a tag or pushing to a public
   `main` is outward-facing: ask first.
 - **Every plugin is a CLAP and a VST3; no Linux-only format and no AAX** (the owner, 2026-10-16: "If
   anybody wants the linux specific ones they can make it themselves"). The rules are mxm-kit's
   `docs/plugin-conventions.md` (*Every plugin is a CLAP and a VST3*).
-- **Pre-alpha: nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
-  releasing anything to anybody. No really."). There are no tags (2026-10-07) and no builds go to
-  anyone. `repos.txt` records `public` or `private` for each repository; the private ones are
+- **Version 1.0 of the MXM collection is the focus** (the owner, 2026-10-25: "I need version 1 of
+  the project to be published"): the 22 plugins, MXM Player, mxm-tools and tutti, every one through
+  every gate; newDAWn and the web tracker come after it. The plan is ops' `plans/plan-v1-release.md`.
+- **Until 1.0 nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
+  releasing anything to anybody. No really."): no builds go to anyone, and the only tags are a
+  release's, one per product (`v1.0.0`). **From 1.0 no release breaks a minor version**: a project,
+  a saved state or a parameter id one writes opens in every later release of its major; **and every
+  released version stays installable**, for old tracks (the owner, 2026-10-25: "we dont releease
+  anything that break minor versions. and older versions should be installable via the portal so
+  you can work on old tracks it you want to"). `repos.txt` records `public` or `private` for each repository; the private ones are
   `newdawn`, `mxm-model-drums` and `mxm-tracker` (private until they are ready) and `ops`.
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.
