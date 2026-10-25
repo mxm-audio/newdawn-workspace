@@ -86,6 +86,9 @@ step that repeats across repositories, rather than a loop by hand:
   whose `AGENTS.md` has the rules. It goes on past a failure, exits nonzero on one, warns about an
   older copy in a folder newDAWn scans first (`CLAP_PATH`, `VST3_PATH`), and takes a plugin's copy
   out of the per-user CLAP folder, where installs went before, once it is installed.
+- `release`: this platform's release of every plugin and MXM Player, as the portal installs them,
+  into `target-shared/release/<platform>/` with a `manifest.json` (id, version, commit, SHA-256);
+  signed when the signing settings in `ws.py` are set. Refuses a dirty or behind repository.
 - `each <command>`: any command in every repository.
 - `link kit [player] [format] [<fork>…]` / `unlink`: build against the local mxm-kit, the player,
   the format (tutti), any other repository by its name (`mxm-creative-sampler`) and the forks named (`nice-plug`, `nice-plug-egui`, `egui-baseview`, `baseview`), instead of their main, for one change

@@ -12,7 +12,7 @@ this); `ws` is how the workspace does the same step everywhere at once.
                                              only (other platforms are a later batch)
     python ws.py commit -m "message"         commit every changed repository with one message
     python ws.py push                        push every repository that is ahead (refused while linked)
-    python ws.py tag                         refused: no tags (the owner, 2026-10-07)
+    python ws.py tag                         refused: the only tags are a release's (the owner, 2026-10-25)
     python ws.py pull                        fast-forward every repository
     python ws.py each <command ...>          run a command in every repository
     python ws.py link kit [player] [format] [nice-plug] [nice-plug-egui] [egui-baseview] [baseview]
@@ -29,6 +29,10 @@ this); `ws` is how the workspace does the same step everywhere at once.
                                              it, CLAP and VST3, in the standard plugin folders (or
                                              MXM_CLAP_DIR, MXM_VST3_DIR); --only narrows it to some
                                              plugins. A machine catches up with `pull`, then `install`
+    python ws.py release                     this platform's release of every plugin and MXM Player,
+                                             as the MXM portal installs them: bundled, signed when the
+                                             signing settings are set, one archive each and a
+                                             manifest, in target-shared/release/<platform>/
 
 `update` and `install` fetch first and refuse a repository whose checkout is behind its upstream.
 
@@ -1027,9 +1031,185 @@ def cmd_install(args):
     return 1 if any(not what.startswith("installed") for _, what in results) else 0
 
 
+# --- release ------------------------------------------------------------------------------------
+
+def release_platform():
+    """The platform part of a release archive's name, as MXM Player's `packaging/package.py` names it."""
+    if sys.platform.startswith("win"):
+        return "windows-x64"
+    if sys.platform == "darwin":
+        return "macos-universal"
+    import platform
+    machine = {"x86_64": "x64", "aarch64": "arm64"}.get(platform.machine(), platform.machine())
+    return f"linux-{machine}"
+
+
+def package_versions(path):
+    """package name -> version, for every package of a repository's workspace."""
+    r = subprocess.run([cargo_program(), "metadata", "--no-deps", "--format-version", "1"], cwd=path,
+                       env=cargo_env(), capture_output=True, text=True, encoding="utf-8")
+    if r.returncode:
+        return {}
+    return {p["name"]: p["version"] for p in json.loads(r.stdout)["packages"]}
+
+
+def sha256_of(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def sign_plugin(clap, vst3):
+    """Signs a plugin's two bundles when this platform's signing settings are set: Windows through
+    Microsoft's Artifact Signing (`ARTIFACT_SIGNING_DLIB`, `ARTIFACT_SIGNING_METADATA`), macOS with
+    a Developer ID (`MACOS_SIGNING_IDENTITY`), ad hoc otherwise, which Apple silicon needs at least.
+    Linux has no such check. Returns how it was signed."""
+    if sys.platform.startswith("win"):
+        dlib, metadata = os.environ.get("ARTIFACT_SIGNING_DLIB"), os.environ.get("ARTIFACT_SIGNING_METADATA")
+        if not (dlib and metadata):
+            return "unsigned"
+        modules = [clap] + sorted(vst3.glob("Contents/*-win/*.vst3")) if vst3.exists() else [clap]
+        kits = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Windows Kits"
+        # On the PATH, or the newest Windows SDK's.
+        signtool = shutil.which("signtool") or next(iter(sorted(kits.glob("10/bin/*/x64/signtool.exe"),
+                                                                 reverse=True)), None)
+        if not signtool:
+            raise SystemExit("release: signtool isn't installed (it comes with the Windows SDK)")
+        subprocess.run([str(signtool), "sign", "/fd", "SHA256", "/tr", "http://timestamp.acs.microsoft.com",
+                        "/td", "SHA256", "/dlib", dlib, "/dmdf", metadata, *map(str, modules)], check=True)
+        return "Artifact Signing"
+    if sys.platform == "darwin":
+        identity = os.environ.get("MACOS_SIGNING_IDENTITY")
+        sign = (["codesign", "--force", "--timestamp", "--options", "runtime", "--sign", identity]
+                if identity else ["codesign", "--force", "--deep", "--sign", "-"])
+        for bundle in (clap, vst3):
+            if bundle.exists():
+                subprocess.run([*sign, str(bundle)], check=True)
+        return "Developer ID" if identity else "ad hoc"
+    return "unsigned (Linux has no check)"
+
+
+def pack(staging, archive):
+    """One archive of a staging folder's contents: `ditto` on macOS, so bundles keep their signatures
+    and modes; a tarball on Linux, for the modes; a zip on Windows."""
+    remove(archive)
+    if sys.platform == "darwin":
+        subprocess.run(["ditto", "-c", "-k", "--keepParent", str(staging), str(archive)], check=True)
+    elif sys.platform.startswith("linux"):
+        import tarfile
+        with tarfile.open(archive, "w:gz") as tarball:
+            tarball.add(staging, arcname=staging.name)
+    else:
+        import zipfile
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zipped:
+            for file in sorted(staging.rglob("*")):
+                zipped.write(file, Path(staging.name) / file.relative_to(staging))
+
+
+def cmd_release(args):
+    """Builds this platform's release of every plugin, and of MXM Player, as the MXM portal installs
+    them: each product bundled in release (universal on macOS), signed when the signing settings are
+    set, packed as one archive, and listed in `manifest.json` with its id, version, commit, size and
+    SHA-256, the facts the portal's signed index is made from (ops' `plans/plan-sales-portal.md` §5).
+    Into `target-shared/release/<platform>/`. Refuses a repository behind its upstream or with
+    uncommitted changes, so an archive is always a commit; `--allow-dirty` builds anyway, marked."""
+    allow_dirty = "--allow-dirty" in args
+    products = {n: v for n, v in selected(args).items() if v[0] in ("instruments", "effects", "player")}
+    if linked():
+        raise SystemExit(f"refused: linked builds aren't releases ({CONFIG}); `python ws.py unlink` first")
+    plat = release_platform()
+    out = ROOT / "target-shared" / "release" / plat
+    out.mkdir(parents=True, exist_ok=True)
+    target = ROOT / "target-shared"
+    env = {**cargo_env(), "CARGO_TARGET_DIR": str(target), "MXM_INSTALL_CLAP": "0"}
+    refused = refuse_behind(products)
+    entries, results = [], []
+    for name, (group, path) in products.items():
+        dirty = state(path)["dirty"]
+        if name in refused:
+            results.append((name, "NOT RELEASED: behind its upstream, pull it first"))
+            continue
+        if dirty and not allow_dirty:
+            results.append((name, "NOT RELEASED: uncommitted changes (commit them, or --allow-dirty)"))
+            continue
+        commit = git(path, "rev-parse", "HEAD")
+        if group == "player":
+            print(f"\n=== {name}", flush=True)
+            code = subprocess.run([sys.executable, "packaging/package.py", "--out", str(out)], cwd=path,
+                                  env={**cargo_env(), "CARGO_TARGET_DIR": str(path / "target")}).returncode
+            version = package_versions(path).get("mxm-player", "?")
+            made = sorted(out.glob(f"mxm-player-{version}-{plat}.*"))
+            if code or not made:
+                results.append((name, "NOT RELEASED: its packaging failed"))
+                continue
+            entries.append({"id": "dk.mxm.mxm-player", "name": "mxm-player", "kind": "app",
+                            "repository": name, "commit": commit, "dirty": bool(dirty),
+                            "version": version, "file": made[0].name, "size": made[0].stat().st_size,
+                            "sha256": sha256_of(made[0])})
+            results.append((name, f"released {made[0].name}"))
+            continue
+        if not (path / "bundler.toml").exists():
+            continue
+        versions = package_versions(path)
+        for package, bundle in bundles_of(path):
+            print(f"\n=== {bundle} ({name})", flush=True)
+            built = target / "bundled" / f"{bundle}.clap"
+            built_vst3 = target / "bundled" / f"{bundle}.vst3"
+            control_map = path / "target" / "bundled" / f"{bundle}.control-map.json"
+            try:
+                remove(built)
+                remove(built_vst3)
+                remove(control_map)
+            except OSError as error:
+                results.append((bundle, f"NOT RELEASED: the last build's output can't be removed: {error}"))
+                continue
+            # As `install` runs the xtask: its own target folder, the plugin in the shared one.
+            verb = "bundle-universal" if sys.platform == "darwin" else "bundle"
+            command = [cargo_program(), "run", "--package", "xtask", "--release",
+                       "--target-dir", str(path / "target"), "--", verb, package, "--release"]
+            print(f"$ {' '.join(command)}", flush=True)
+            code = subprocess.run(command, cwd=path, env=env).returncode
+            if code or not built.exists():
+                results.append((bundle, "NOT RELEASED: the build failed"))
+                continue
+            version = versions.get(package, "?")
+            stem = f"{bundle}-{version}-{plat}"
+            staging = out / stem
+            remove(staging)
+            staging.mkdir(parents=True)
+            for part in (built, built_vst3, control_map):
+                if part.is_dir():
+                    shutil.copytree(part, staging / part.name, symlinks=True)
+                elif part.exists():
+                    shutil.copy2(part, staging / part.name)
+            signed = sign_plugin(staging / built.name, staging / built_vst3.name)
+            archive = out / (f"{stem}.tar.gz" if sys.platform.startswith("linux") else f"{stem}.zip")
+            pack(staging, archive)
+            remove(staging)
+            formats = ["clap"] + (["vst3"] if built_vst3.exists() else [])
+            entries.append({"id": f"dk.mxm.{bundle}", "name": bundle, "kind": "plugin",
+                            "formats": formats, "repository": name, "commit": commit,
+                            "dirty": bool(dirty), "version": version, "file": archive.name,
+                            "size": archive.stat().st_size, "sha256": sha256_of(archive),
+                            "signed": signed})
+            results.append((bundle, f"released {archive.name} ({', '.join(formats)}; {signed})"))
+    manifest = out / "manifest.json"
+    known = {}
+    if manifest.exists():
+        known = {e["id"]: e for e in json.loads(manifest.read_text(encoding="utf-8"))["products"]}
+    known.update({e["id"]: e for e in entries})
+    write(manifest, json.dumps({"platform": plat, "products": sorted(known.values(), key=lambda e: e["id"])},
+                               indent=2) + "\n")
+    print("\n" + "\n".join(f"{what_name:24} {what}" for what_name, what in results))
+    print(f"\n{len(entries)} archive(s) in {out}, listed in {manifest.name}")
+    return 1 if any(not what.startswith("released") for _, what in results) else 0
+
+
 COMMANDS = {"clone": cmd_clone, "status": cmd_status, "tag": cmd_tag, "reach": cmd_reach, "check": cmd_check, "commit": cmd_commit, "push": cmd_push,
             "pull": cmd_pull, "each": cmd_each, "link": cmd_link, "unlink": cmd_unlink, "update": cmd_update,
-            "install": cmd_install, "copy": cmd_copy}
+            "install": cmd_install, "copy": cmd_copy, "release": cmd_release}
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
