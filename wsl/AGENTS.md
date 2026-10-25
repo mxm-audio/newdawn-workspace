@@ -29,8 +29,8 @@ and the scripts that drive them; `platform-sweep.sh` also runs the batch's macOS
   shares one build folder (`~/target/shared`).
 - **The cross-platform batch, one command** (2026-10-08): `wsl -d archlinux -- bash
   /mnt/e/newDAWn/wsl/platform-sweep.sh /mnt/e/newDAWn [repo ...]` runs fmt, clippy as CI runs it
-  and the fast tier for mxm-kit, MXM Player, every instrument and effect and mxm-tools, sharing one
-  build folder. The same script runs on a Mac with the workspace cloned (`bash
+  and the fast tier for mxm-kit, MXM Player, tutti, every instrument and effect and mxm-tools,
+  sharing one build folder. The same script runs on a Mac with the workspace cloned (`bash
   ~/newDAWn/wsl/platform-sweep.sh ~/newDAWn`). Results: `~/sweep/summary.txt`, ending in "sweep
   done"; about 25 minutes here. It replaces `linux-sweep.sh`, which ran the tests alone.
 - **MXM Player is checked in a clone, never through `/mnt/e`**: its tests load bundles from its own

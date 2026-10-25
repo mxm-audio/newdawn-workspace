@@ -124,8 +124,9 @@ folder, and its docs must not send a contributor here.
   Before a push: `cargo fmt --all -- --check`, `cargo clippy` and the tests the change reaches, on
   Windows, once. No Linux (WSL) or macOS run, and no waiting on CI, during the work: those come in
   one batch when the owner asks. Code stays cross-platform all the same. **For version 1.0 the owner
-  has asked** (2026-10-25): the batch runs at the end of each stage of ops' `plans/plan-v1-release.md`,
-  and on every release candidate; cite that in `MXM_GATE_OK`.
+  has asked** (2026-10-25) for the batch once their per-plugin review is done, and on every release
+  candidate (ops' `plans/plan-v1-release.md`); cite that in `MXM_GATE_OK`. Not before: "we are going
+  to change them anyway after my per plugin review".
 - **CI runs only when started by hand** (the owner, 2026-10-07; tags no longer start it either).
 - **Test a minimum, smartly** (the owner, 2026-10-06: "Development time is far more important than
   0 bugs on all platforms at this point"; earlier: "You have a tendency to overtest each step, dont
@@ -173,14 +174,20 @@ folder, and its docs must not send a contributor here.
 
 ## Disk and build output
 
-- C: is kept as empty as possible (the owner, 2026-10-06), so project work stays under `E:\newDAWn`.
+- **Nothing works on C:** (the owner, 2026-10-06, and 2026-10-25: "nothing should work on C at
+  all"), so project work stays under `E:\newDAWn`, and a session's scripts and scratch output go on
+  E: too, never in its scratchpad on C:. **Never start a bare `python` (a REPL) as a background task**: with no console it
+  writes tracebacks into its log without end, and one filled C: with 953 GB (2026-10-25).
   **One exception, the pitch editor's clean-room worktree, `E:\newDAWn-cleanroom`** (the owner,
   2026-10-16): beside the workspace, still on E:, so a `ws link` never reaches its builds and the
   workspace's repository never sees it. It goes, with its `target/`, once its work is merged.
-- One build folder per repository, or one shared folder for checks across many; never one per
-  worktree. The `build_output.py` hook in `~/.claude/hooks` warns, blocks on low disk space and lists
-  stale folders. `python ~/.claude/hooks/build_output.py clean <folder>` empties one, keeping
-  `bundled/`.
+- One build folder per repository, or one shared folder for checks across many. A worktree's own
+  folder is the one exception, and goes once its work is merged: **a worktree never builds into
+  the folder a checkout of its own repository builds in** (2026-10-16). Cargo knows a workspace
+  member by its path inside the repository and trusts file times, so what one built last stands
+  in for the other's older edits, silently. The `build_output.py` hook in `~/.claude/hooks` warns,
+  blocks on low disk space and lists stale folders. `python ~/.claude/hooks/build_output.py clean
+  <folder>` empties one, keeping `bundled/`.
 - `cargo xtask fetch` clones the plugins a repository's tests need into `$CARGO_HOME/mxm-fetch`.
 
 ## Child DOX Index

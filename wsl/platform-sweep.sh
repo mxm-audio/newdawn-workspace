@@ -1,7 +1,7 @@
 #!/bin/bash
 # The cross-platform batch: every MXM repository's fmt, clippy (as CI runs it) and fast tier, on
-# Linux (inside WSL) or macOS, the builds sharing one folder. MXM Player is checked in a clone of its
-# own, with its fixtures and fetched plugins built first: its tests load bundles from its own
+# Linux (inside WSL) or macOS, the builds sharing one folder; tutti too, since it is in version 1.0
+# (2026-10-25). MXM Player is checked in a clone of its own, with its fixtures and fetched plugins built first: its tests load bundles from its own
 # target/, which a shared checkout fills with another platform's builds (AGENTS.md).
 #
 # usage: platform-sweep.sh <workspace root> [repo ...]
@@ -42,7 +42,7 @@ check() {
   echo "=== codes prepare=$prep fmt=$f clippy=$c test=$t"
 }
 
-for dir in "$root"/kit/mxm-kit "$root"/player/mxm-player "$root"/instruments/* "$root"/effects/* "$root"/tools/*; do
+for dir in "$root"/kit/mxm-kit "$root"/player/mxm-player "$root"/format/* "$root"/instruments/* "$root"/effects/* "$root"/tools/*; do
   repo=$(basename "$dir")
   [ -f "$dir/Cargo.toml" ] || continue
   wanted "$repo" "$@" || continue
