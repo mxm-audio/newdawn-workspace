@@ -1,6 +1,7 @@
 # AGENTS.md — the newDAWn and MXM workspace
 
-`E:\newDAWn` holds every newDAWn and MXM repository, and this file is the DOX rail above them.
+This folder, the workspace, holds every newDAWn and MXM repository, and this file is the DOX rail
+above them. Where it lives is each machine's own (`E:\newDAWn` on one; see *Disk and build output*).
 Claude Code loads it in every session started anywhere below this folder, so it holds only what is
 true in all of them. Each repository has its own `AGENTS.md` chain: read that next.
 
@@ -174,13 +175,15 @@ folder, and its docs must not send a contributor here.
 
 ## Disk and build output
 
-- **Nothing works on C:** (the owner, 2026-10-06, and 2026-10-25: "nothing should work on C at
-  all"), so project work stays under `E:\newDAWn`, and a session's scripts and scratch output go on
-  E: too, never in its scratchpad on C:. **Never start a bare `python` (a REPL) as a background task**: with no console it
+- **Which drive the workspace is on is each machine's own** (the owner, 2026-10-27: "The E disk is
+  only for one machine"). Project work stays inside the workspace folder. **On the machine that
+  keeps it at `E:\newDAWn`, nothing works on C:** (the owner, 2026-10-06, and 2026-10-25: "nothing
+  should work on C at all"): a session's scripts and scratch output go on E: too, never in its
+  scratchpad on C:. **Never start a bare `python` (a REPL) as a background task**: with no console it
   writes tracebacks into its log without end, and one filled C: with 953 GB (2026-10-25).
-  **One exception, the pitch editor's clean-room worktree, `E:\newDAWn-cleanroom`** (the owner,
-  2026-10-16): beside the workspace, still on E:, so a `ws link` never reaches its builds and the
-  workspace's repository never sees it. It goes, with its `target/`, once its work is merged.
+  **One exception, the pitch editor's clean-room worktree, `newDAWn-cleanroom`** (the owner,
+  2026-10-16): beside the workspace folder, on its drive, so a `ws link` never reaches its builds and
+  the workspace's repository never sees it. It goes, with its `target/`, once its work is merged.
 - One build folder per repository, or one shared folder for checks across many. A worktree's own
   folder is the one exception, and goes once its work is merged: **a worktree never builds into
   the folder a checkout of its own repository builds in** (2026-10-16). Cargo knows a workspace
