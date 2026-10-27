@@ -906,12 +906,27 @@ def place(source, destination):
             pass
 
 
+# What a bundle stages beside its `.clap`, in its repository's own `target/bundled`, and an install
+# puts beside the installed one, by suffix (and how a problem names it): its control map, and its
+# factory presets, a folder (mxm-kit's `mxm_xtask::presets`; ops' `plans/plan-external-presets.md`).
+# The VST3 carries its presets inside.
+BESIDE = {".control-map.json": "CONTROL MAP", ".presets": "PRESETS"}
+
+
+def outputs(bundle, bundled, staged):
+    """What a bundle of `bundle` makes: its CLAP and VST3 in `bundled` (the shared target's), and
+    what goes beside the CLAP in `staged` (the repository's `target/bundled`, where its xtask
+    stages them whichever target folder the plugin builds in)."""
+    return [bundled / f"{bundle}.clap", bundled / f"{bundle}.vst3",
+            *(staged / (bundle + suffix) for suffix in BESIDE)]
+
+
 def retire(bundle, folder):
-    """Takes `bundle`'s own CLAP and control map out of `folder`, by exact name, once it is
+    """Takes `bundle`'s own CLAP, control map and presets out of `folder`, by exact name, once it is
     installed elsewhere; one a host holds is set aside as `.old`, which no host lists. Returns what
     is still there."""
     left = []
-    for name in (f"{bundle}.clap", f"{bundle}.control-map.json"):
+    for name in (f"{bundle}.clap", *(bundle + suffix for suffix in BESIDE)):
         path = folder / name
         clear_leftovers(path)
         try:
@@ -922,6 +937,49 @@ def retire(bundle, folder):
             except OSError:
                 left.append(path)
     return left
+
+
+def install_built(bundle, bundled, staged, destinations):
+    """Installs one plugin a build made in `bundled`: its CLAP in `destinations["CLAP"]`, beside it
+    what the build staged in `staged` (`BESIDE`), and its VST3, when one was built, in
+    `destinations["VST3"]`. Returns what to say, and (format, path) for each bundle installed."""
+    built, built_vst3 = bundled / f"{bundle}.clap", bundled / f"{bundle}.vst3"
+    destination = destinations["CLAP"]
+    try:
+        destination.mkdir(parents=True, exist_ok=True)
+        place(built, destination / built.name)
+    except OSError as error:
+        return (f"NOT INSTALLED: {error}. Close the hosts using it, or give this user write access "
+                "to that folder, and run install again"), []
+    installed = [("CLAP", destination / built.name)]
+    problems = []
+    # Its control map and its presets beside it, each whole, or none rather than an older one
+    # (a file a later build dropped is gone with the folder); said if even that fails.
+    for suffix, what in BESIDE.items():
+        source, beside = staged / (bundle + suffix), destination / (bundle + suffix)
+        try:
+            if source.exists():
+                place(source, beside)
+            else:
+                remove(beside)
+        except OSError as error:
+            try:
+                remove(beside)
+            except OSError:
+                pass
+            left = "an older one is still beside it" if beside.exists() else "it has none"
+            problems.append(f"NOT ITS {what} ({left}): {error}")
+    formats = "CLAP"
+    if built_vst3.exists():
+        try:
+            destinations["VST3"].mkdir(parents=True, exist_ok=True)
+            place(built_vst3, destinations["VST3"] / built_vst3.name)
+            formats = "CLAP and VST3"
+            installed.append(("VST3", destinations["VST3"] / built_vst3.name))
+        except OSError as error:
+            problems.append(f"NOT ITS VST3: {error}")
+    return (f"installed, {formats}" if not problems else
+            f"INSTALLED, BUT {'; '.join(problems)}. Run install again"), installed
 
 
 def cmd_install(args):
@@ -953,15 +1011,12 @@ def cmd_install(args):
         if not (path / "bundler.toml").exists():
             continue
         for package, bundle in bundles_of(path):
-            built = target / "bundled" / f"{bundle}.clap"
-            built_vst3 = target / "bundled" / f"{bundle}.vst3"
-            control_map = path / "target" / "bundled" / f"{bundle}.control-map.json"
+            bundled, staged = target / "bundled", path / "target" / "bundled"
             print(f"\n=== {bundle} ({name})", flush=True)
             # Only a fresh build is installed: what an earlier one left goes first.
             try:
-                remove(built)
-                remove(built_vst3)
-                remove(control_map)
+                for stale in outputs(bundle, bundled, staged):
+                    remove(stale)
             except OSError as error:
                 results.append((bundle, f"NOT INSTALLED: the last build's output can't be removed: "
                                         f"{error}"))
@@ -974,47 +1029,15 @@ def cmd_install(args):
                        "--target-dir", str(path / "target"), "--", "bundle", package, "--release"]
             print(f"$ {' '.join(command)}", flush=True)
             code = subprocess.run(command, cwd=path, env=env).returncode
-            if code or not built.exists():
+            if code or not (bundled / f"{bundle}.clap").exists():
                 results.append((bundle, "NOT INSTALLED: the build failed"))
                 continue
-            destination = destinations["CLAP"]
-            try:
-                destination.mkdir(parents=True, exist_ok=True)
-                place(built, destination / built.name)
-            except OSError as error:
-                results.append((bundle, f"NOT INSTALLED: {error}. Close the hosts using it, or give "
-                                        "this user write access to that folder, and run install "
-                                        "again"))
-                continue
-            hidden += found_first("CLAP", destination / built.name)
-            if retired and not same_folder(retired, destination):
+            what, installed = install_built(bundle, bundled, staged, destinations)
+            results.append((bundle, what))
+            for fmt, bundle_path in installed:
+                hidden += found_first(fmt, bundle_path)
+            if installed and retired and not same_folder(retired, destinations["CLAP"]):
                 left_behind += retire(bundle, retired)
-            problems = []
-            # Its control map beside it, or none rather than an older one; said if even that fails.
-            installed_map = destination / control_map.name
-            try:
-                if control_map.exists():
-                    place(control_map, installed_map)
-                else:
-                    remove(installed_map)
-            except OSError as error:
-                try:
-                    remove(installed_map)
-                except OSError:
-                    pass
-                left = "an older one is still beside it" if installed_map.exists() else "it has none"
-                problems.append(f"NOT ITS CONTROL MAP ({left}): {error}")
-            formats = "CLAP"
-            if built_vst3.exists():
-                try:
-                    destinations["VST3"].mkdir(parents=True, exist_ok=True)
-                    place(built_vst3, destinations["VST3"] / built_vst3.name)
-                    formats = "CLAP and VST3"
-                    hidden += found_first("VST3", destinations["VST3"] / built_vst3.name)
-                except OSError as error:
-                    problems.append(f"NOT ITS VST3: {error}")
-            results.append((bundle, f"installed, {formats}" if not problems else
-                            f"INSTALLED, BUT {'; '.join(problems)}. Run install again"))
     if not results:
         print("nothing to install")
         return 0
@@ -1108,6 +1131,25 @@ def pack(staging, archive):
                 zipped.write(file, Path(staging.name) / file.relative_to(staging))
 
 
+def pack_plugin(bundle, bundled, staged, out, stem, sign=sign_plugin):
+    """One plugin's release archive in `out`, `<stem>.zip` (`.tar.gz` on Linux): what its build made
+    (`outputs`), side by side as an install puts them, so its presets folder is beside its CLAP,
+    the bundles signed by `sign`. Returns the archive and how it was signed."""
+    staging = out / stem
+    remove(staging)
+    staging.mkdir(parents=True)
+    for part in outputs(bundle, bundled, staged):
+        if part.is_dir():
+            shutil.copytree(part, staging / part.name, symlinks=True)
+        elif part.exists():
+            shutil.copy2(part, staging / part.name)
+    signed = sign(staging / f"{bundle}.clap", staging / f"{bundle}.vst3")
+    archive = out / (f"{stem}.tar.gz" if sys.platform.startswith("linux") else f"{stem}.zip")
+    pack(staging, archive)
+    remove(staging)
+    return archive, signed
+
+
 def cmd_release(args):
     """Builds this platform's release of every plugin, and of MXM Player, as the MXM portal installs
     them: each product bundled in release (universal on macOS), signed when the signing settings are
@@ -1155,13 +1197,11 @@ def cmd_release(args):
         versions = package_versions(path)
         for package, bundle in bundles_of(path):
             print(f"\n=== {bundle} ({name})", flush=True)
-            built = target / "bundled" / f"{bundle}.clap"
-            built_vst3 = target / "bundled" / f"{bundle}.vst3"
-            control_map = path / "target" / "bundled" / f"{bundle}.control-map.json"
+            bundled, staged = target / "bundled", path / "target" / "bundled"
+            built, built_vst3 = bundled / f"{bundle}.clap", bundled / f"{bundle}.vst3"
             try:
-                remove(built)
-                remove(built_vst3)
-                remove(control_map)
+                for stale in outputs(bundle, bundled, staged):
+                    remove(stale)
             except OSError as error:
                 results.append((bundle, f"NOT RELEASED: the last build's output can't be removed: {error}"))
                 continue
@@ -1175,19 +1215,7 @@ def cmd_release(args):
                 results.append((bundle, "NOT RELEASED: the build failed"))
                 continue
             version = versions.get(package, "?")
-            stem = f"{bundle}-{version}-{plat}"
-            staging = out / stem
-            remove(staging)
-            staging.mkdir(parents=True)
-            for part in (built, built_vst3, control_map):
-                if part.is_dir():
-                    shutil.copytree(part, staging / part.name, symlinks=True)
-                elif part.exists():
-                    shutil.copy2(part, staging / part.name)
-            signed = sign_plugin(staging / built.name, staging / built_vst3.name)
-            archive = out / (f"{stem}.tar.gz" if sys.platform.startswith("linux") else f"{stem}.zip")
-            pack(staging, archive)
-            remove(staging)
+            archive, signed = pack_plugin(bundle, bundled, staged, out, f"{bundle}-{version}-{plat}")
             formats = ["clap"] + (["vst3"] if built_vst3.exists() else [])
             entries.append({"id": f"dk.mxm.{bundle}", "name": bundle, "kind": "plugin",
                             "formats": formats, "repository": name, "commit": commit,

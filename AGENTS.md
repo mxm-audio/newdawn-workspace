@@ -86,7 +86,9 @@ step that repeats across repositories, rather than a loop by hand:
   the daw and bitwig"), once the plugin is locked on a kit that has it: mxm-kit's `mxm-xtask`,
   whose `AGENTS.md` has the rules. It goes on past a failure, exits nonzero on one, warns about an
   older copy in a folder newDAWn scans first (`CLAP_PATH`, `VST3_PATH`), and takes a plugin's copy
-  out of the per-user CLAP folder, where installs went before, once it is installed.
+  out of the per-user CLAP folder, where installs went before, once it is installed. Its presets
+  folder, `<Bundle Name>.presets/`, travels with the `.clap` as its control map does, into
+  `release`'s archive too (2026-10-27; `python -I ws_test.py` tests both).
 - `release`: this platform's release of every plugin and MXM Player, as the portal installs them,
   into `target-shared/release/<platform>/` with a `manifest.json` (id, version, commit, SHA-256);
   signed when the signing settings in `ws.py` are set. Refuses a dirty or behind repository.
