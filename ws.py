@@ -906,27 +906,46 @@ def place(source, destination):
             pass
 
 
-# What a bundle stages beside its `.clap`, in its repository's own `target/bundled`, and an install
-# puts beside the installed one, by suffix (and how a problem names it): its control map, and its
-# factory presets, a folder (mxm-kit's `mxm_xtask::presets`; ops' `plans/plan-external-presets.md`).
-# The VST3 carries its presets inside.
-BESIDE = {".control-map.json": "CONTROL MAP", ".presets": "PRESETS"}
+# What a bundle stages in its repository's own `target/bundled`, by suffix: its control map, which an
+# install puts beside the installed `.clap`, and its factory presets, a folder, which an install puts
+# in the plugin's folder for its version (`presets_root`; mxm-kit's `mxm_xtask::presets`, ops'
+# `plans/plan-external-presets.md`).
+MAP, PRESETS = ".control-map.json", ".presets"
+
+
+def presets_root():
+    """Where factory presets are installed: `mxm` under this user's local data directory, where
+    mxm-kit's `mxm_xtask::presets::root` puts them and the plugins' `mxm_preset::factory_dir` reads
+    them (the owner, 2026-10-28: a data folder, one per version)."""
+    if os.name == "nt":
+        return Path(os.environ["LOCALAPPDATA"]) / "mxm"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "mxm"
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "mxm"
+
+
+def presets_plugin(folder):
+    """The plugin id the presets staged in `folder` are for (each file's `plugin`, which the
+    bundle's check holds to one), or None for a folder with none."""
+    for file in sorted(folder.glob("*.json")):
+        return json.loads(file.read_text(encoding="utf-8"))["plugin"]
+    return None
 
 
 def outputs(bundle, bundled, staged):
     """What a bundle of `bundle` makes: its CLAP and VST3 in `bundled` (the shared target's), and
-    what goes beside the CLAP in `staged` (the repository's `target/bundled`, where its xtask
+    its control map and presets in `staged` (the repository's `target/bundled`, where its xtask
     stages them whichever target folder the plugin builds in)."""
     return [bundled / f"{bundle}.clap", bundled / f"{bundle}.vst3",
-            *(staged / (bundle + suffix) for suffix in BESIDE)]
+            staged / (bundle + MAP), staged / (bundle + PRESETS)]
 
 
 def retire(bundle, folder):
-    """Takes `bundle`'s own CLAP, control map and presets out of `folder`, by exact name, once it is
+    """Takes `bundle`'s own CLAP and control map out of `folder`, by exact name, once it is
     installed elsewhere; one a host holds is set aside as `.old`, which no host lists. Returns what
     is still there."""
     left = []
-    for name in (f"{bundle}.clap", *(bundle + suffix for suffix in BESIDE)):
+    for name in (f"{bundle}.clap", bundle + MAP):
         path = folder / name
         clear_leftovers(path)
         try:
@@ -939,9 +958,10 @@ def retire(bundle, folder):
     return left
 
 
-def install_built(bundle, bundled, staged, destinations):
-    """Installs one plugin a build made in `bundled`: its CLAP in `destinations["CLAP"]`, beside it
-    what the build staged in `staged` (`BESIDE`), and its VST3, when one was built, in
+def install_built(bundle, bundled, staged, destinations, version):
+    """Installs one plugin a build made in `bundled`: its CLAP in `destinations["CLAP"]` with the
+    control map staged in `staged` beside it, the presets staged there in the plugin's folder for
+    `version` under `destinations["PRESETS"]`, and its VST3, when one was built, in
     `destinations["VST3"]`. Returns what to say, and (format, path) for each bundle installed."""
     built, built_vst3 = bundled / f"{bundle}.clap", bundled / f"{bundle}.vst3"
     destination = destinations["CLAP"]
@@ -953,22 +973,34 @@ def install_built(bundle, bundled, staged, destinations):
                 "to that folder, and run install again"), []
     installed = [("CLAP", destination / built.name)]
     problems = []
-    # Its control map and its presets beside it, each whole, or none rather than an older one
-    # (a file a later build dropped is gone with the folder); said if even that fails.
-    for suffix, what in BESIDE.items():
-        source, beside = staged / (bundle + suffix), destination / (bundle + suffix)
+    # Its control map beside it, whole, or none rather than an older one; said if even that fails.
+    source, beside = staged / (bundle + MAP), destination / (bundle + MAP)
+    try:
+        if source.exists():
+            place(source, beside)
+        else:
+            remove(beside)
+    except OSError as error:
         try:
-            if source.exists():
-                place(source, beside)
-            else:
-                remove(beside)
-        except OSError as error:
-            try:
-                remove(beside)
-            except OSError:
-                pass
-            left = "an older one is still beside it" if beside.exists() else "it has none"
-            problems.append(f"NOT ITS {what} ({left}): {error}")
+            remove(beside)
+        except OSError:
+            pass
+        left = "an older one is still beside it" if beside.exists() else "it has none"
+        problems.append(f"NOT ITS CONTROL MAP ({left}): {error}")
+    # Its presets in its folder for its version, whole, so a file a later build dropped is gone;
+    # other versions' folders stay, each read by its own version. A build that staged none
+    # installs none.
+    presets = staged / (bundle + PRESETS)
+    try:
+        plugin = presets_plugin(presets) if presets.is_dir() else None
+        if plugin:
+            if not version:
+                raise ValueError("its version isn't known")
+            folder = destinations["PRESETS"] / plugin / "factory" / version
+            folder.parent.mkdir(parents=True, exist_ok=True)
+            place(presets, folder)
+    except (OSError, ValueError, KeyError) as error:
+        problems.append(f"NOT ITS PRESETS: {error}")
     formats = "CLAP"
     if built_vst3.exists():
         try:
@@ -1000,7 +1032,7 @@ def cmd_install(args):
     # It installs each plugin itself, below, whichever kit the plugin is locked on: the kit's xtask
     # installing a bundle too (mxm-kit's `mxm-xtask`, 2026-10-13) would copy it twice.
     env = {**cargo_env(), "CARGO_TARGET_DIR": str(target), "MXM_INSTALL_CLAP": "0"}
-    destinations = {fmt: plugin_folder(fmt) for fmt in ("CLAP", "VST3")}
+    destinations = {**{fmt: plugin_folder(fmt) for fmt in ("CLAP", "VST3")}, "PRESETS": presets_root()}
     retired = retired_clap_folder()
     results, hidden, left_behind = [], [], []
     refused = refuse_behind(plugins)
@@ -1010,6 +1042,7 @@ def cmd_install(args):
             continue
         if not (path / "bundler.toml").exists():
             continue
+        versions = package_versions(path)
         for package, bundle in bundles_of(path):
             bundled, staged = target / "bundled", path / "target" / "bundled"
             print(f"\n=== {bundle} ({name})", flush=True)
@@ -1032,7 +1065,7 @@ def cmd_install(args):
             if code or not (bundled / f"{bundle}.clap").exists():
                 results.append((bundle, "NOT INSTALLED: the build failed"))
                 continue
-            what, installed = install_built(bundle, bundled, staged, destinations)
+            what, installed = install_built(bundle, bundled, staged, destinations, versions.get(package))
             results.append((bundle, what))
             for fmt, bundle_path in installed:
                 hidden += found_first(fmt, bundle_path)
@@ -1133,8 +1166,9 @@ def pack(staging, archive):
 
 def pack_plugin(bundle, bundled, staged, out, stem, sign=sign_plugin):
     """One plugin's release archive in `out`, `<stem>.zip` (`.tar.gz` on Linux): what its build made
-    (`outputs`), side by side as an install puts them, so its presets folder is beside its CLAP,
-    the bundles signed by `sign`. Returns the archive and how it was signed."""
+    (`outputs`), side by side: the bundles, signed by `sign`, the control map and the presets
+    folder, which the portal installs as `install` does, the presets in their folder for the
+    manifest's id and version. Returns the archive and how it was signed."""
     staging = out / stem
     remove(staging)
     staging.mkdir(parents=True)

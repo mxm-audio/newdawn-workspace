@@ -4,6 +4,7 @@ folder a host reads, never C:. Standard library only; from the workspace root:
     python -I ws_test.py
 """
 import importlib.util
+import json
 import shutil
 import tarfile
 import tempfile
@@ -24,6 +25,12 @@ BUNDLE = "MXM Test"
 CLAP, MAP, PRESETS, VST3 = (f"{BUNDLE}.clap", f"{BUNDLE}.control-map.json", f"{BUNDLE}.presets",
                             f"{BUNDLE}.vst3")
 MODULE = f"{VST3}/Contents/x86_64-win/{VST3}"
+PLUGIN = "dk.mxm.test"
+
+
+def preset(name):
+    """A preset file's text, for the test plugin."""
+    return json.dumps({"schema_version": 1, "plugin": PLUGIN, "name": name, "params": {}})
 
 
 def write_files(folder, files):
@@ -69,8 +76,11 @@ class Scratch(unittest.TestCase):
         # Where the plugin builds (the shared target) and where its xtask stages beside it.
         self.bundled = self.root / "target-shared" / "bundled"
         self.staged = self.root / "repository" / "target" / "bundled"
-        self.destinations = {"CLAP": self.root / "CLAP", "VST3": self.root / "VST3"}
+        self.destinations = {"CLAP": self.root / "CLAP", "VST3": self.root / "VST3",
+                             "PRESETS": self.root / "data" / "mxm"}
         self.clap = self.destinations["CLAP"]
+        # Where the test plugin's presets go, a folder per version.
+        self.factory = self.destinations["PRESETS"] / PLUGIN / "factory"
 
     def build(self, presets=None):
         """A build as `cargo xtask bundle` leaves one, after `install` took the last one's output
@@ -82,52 +92,65 @@ class Scratch(unittest.TestCase):
         if presets is not None:
             write_files(self.staged / PRESETS, presets)
 
-    def install(self):
-        return ws.install_built(BUNDLE, self.bundled, self.staged, self.destinations)
+    def install(self, version="1.0.0"):
+        return ws.install_built(BUNDLE, self.bundled, self.staged, self.destinations, version)
 
 
 class Install(Scratch):
-    def test_places_the_presets_beside_the_clap(self):
-        self.build({"a.json": "A", "order.txt": "a.json\n"})
+    def test_puts_the_presets_in_their_folder_for_the_version(self):
+        self.build({"a.json": preset("A"), "order.txt": "a.json\n"})
         what, installed = self.install()
         self.assertEqual(what, "installed, CLAP and VST3")
         self.assertEqual(installed, [("CLAP", self.clap / CLAP), ("VST3", self.destinations["VST3"] / VST3)])
-        self.assertEqual(names(self.clap), [CLAP, MAP, PRESETS])
-        self.assertEqual(contents(self.clap / PRESETS), {"a.json": "A", "order.txt": "a.json\n"})
-        # Nothing goes beside the VST3, which carries its presets inside.
+        self.assertEqual(contents(self.factory / "1.0.0"), {"a.json": preset("A"), "order.txt": "a.json\n"})
+        # Nothing goes beside the CLAP but its map, nor beside the VST3.
+        self.assertEqual(names(self.clap), [CLAP, MAP])
         self.assertEqual(names(self.destinations["VST3"]), [VST3])
 
-    def test_over_an_older_set_leaves_exactly_the_new_one(self):
-        self.build({"a.json": "old A", "dropped.json": "D", "order.txt": "a.json\ndropped.json\n"})
+    def test_over_an_older_set_of_the_version_leaves_exactly_the_new_one(self):
+        self.build({"a.json": preset("old A"), "dropped.json": preset("D"),
+                    "order.txt": "a.json\ndropped.json\n"})
         self.install()
-        self.build({"a.json": "new A", "b.json": "B", "order.txt": "a.json\nb.json\n"})
+        self.build({"a.json": preset("new A"), "b.json": preset("B"), "order.txt": "a.json\nb.json\n"})
         what, _ = self.install()
         self.assertEqual(what, "installed, CLAP and VST3")
-        self.assertEqual(contents(self.clap / PRESETS),
-                         {"a.json": "new A", "b.json": "B", "order.txt": "a.json\nb.json\n"})
+        self.assertEqual(contents(self.factory / "1.0.0"),
+                         {"a.json": preset("new A"), "b.json": preset("B"), "order.txt": "a.json\nb.json\n"})
         # Nor is a copy left beside it: the one put in (`.new`) or the one taken out (`.old`).
-        self.assertEqual(names(self.clap), [CLAP, MAP, PRESETS])
+        self.assertEqual(names(self.factory), ["1.0.0"])
 
-    def test_a_build_with_no_presets_takes_the_installed_ones_out(self):
-        self.build({"a.json": "A"})
-        self.install()
+    def test_another_versions_set_stays_for_it(self):
+        self.build({"a.json": preset("A")})
+        self.install("1.0.0")
+        self.build({"b.json": preset("B")})
+        self.install("1.1.0")
+        self.assertEqual(names(self.factory), ["1.0.0", "1.1.0"])
+        self.assertEqual(contents(self.factory / "1.0.0"), {"a.json": preset("A")})
+        self.assertEqual(contents(self.factory / "1.1.0"), {"b.json": preset("B")})
+
+    def test_a_build_with_no_presets_installs_none(self):
         self.build()
         what, _ = self.install()
         self.assertEqual(what, "installed, CLAP and VST3")
+        self.assertFalse(self.destinations["PRESETS"].exists())
+
+    def test_presets_without_a_version_are_said_not_installed(self):
+        self.build({"a.json": preset("A")})
+        what, _ = self.install(None)
+        self.assertTrue(what.startswith("INSTALLED, BUT NOT ITS PRESETS"), what)
         self.assertEqual(names(self.clap), [CLAP, MAP])
 
 
 class Retire(Scratch):
-    def test_takes_the_presets_out_of_the_older_folder(self):
+    def test_takes_the_plugin_out_of_the_older_folder(self):
         older = self.root / "older CLAP"
-        write_files(older, {CLAP: "clap", MAP: "{}", f"{PRESETS}/a.json": "A",
-                            "Other.presets/a.json": "another plugin's"})
+        write_files(older, {CLAP: "clap", MAP: "{}", "Other.clap": "another plugin's"})
         self.assertEqual(ws.retire(BUNDLE, older), [])
-        self.assertEqual(contents(older), {"Other.presets/a.json": "another plugin's"})
+        self.assertEqual(contents(older), {"Other.clap": "another plugin's"})
 
 
 class Release(Scratch):
-    def test_the_archive_holds_the_presets_beside_the_clap(self):
+    def test_the_archive_holds_the_staged_presets(self):
         self.build({"a.json": "A", "order.txt": "a.json\n"})
         out = self.root / "release"
         out.mkdir()
