@@ -36,7 +36,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `kit/nice-plug/`, `kit/nice-plug-egui/`, `kit/egui-baseview/`, `kit/baseview/` | Forks: upstream plus each `PATCHES.md`; baseview's (2026-10-07) draws Windows frames a busy host cannot starve; nice-plug-egui's (2026-10-16) lets an editor keep only the keys it uses, the rest going to the host | `mxm-audio`, ISC and MIT/Apache |
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in, and in version 1.0 a standalone host (2026-10-25); no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09), and tutti projects, its setup saved and opened in the format newDAWn uses (2026-10-21) | `mxm-audio/mxm-player`, GPL-3.0 |
 | `format/tutti/` | tutti, the open audio project format (the owner, 2026-10-20): its spec, schema, examples, docs and reference crates; newDAWn is its first consumer, MXM Player its first in version 1.0 (2026-10-25). No file IO in the core, so it builds for the web too | `mxm-audio/tutti`, MIT |
-| `instruments/<name>/` (11), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06) private until it is ready; `mxm-fx-eq-n` public since 2026-10-16 |
+| `instruments/<name>/` (12), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06) and `mxm-chaos-drums` (2026-11-02) private until they are ready; `mxm-fx-eq-n` public since 2026-10-16 |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses; in version 1.0 (2026-10-25) | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `apps/mxm-tracker/` | MXM Tracker, the web tracker: newDAWn's tracker on a phone, in step with it, its songs tutti projects; mainly a trial run of the format (the owner, 2026-10-21); after version 1.0 | `mxm-audio/mxm-tracker`, GPL-3.0, private until it is ready |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
@@ -172,7 +172,7 @@ folder, and its docs must not send a contributor here.
   released version stays installable**, for old tracks (the owner, 2026-10-25: "we dont releease
   anything that break minor versions. and older versions should be installable via the portal so
   you can work on old tracks it you want to"). `repos.txt` records `public` or `private` for each repository; the private ones are
-  `newdawn`, `mxm-model-drums` and `mxm-tracker` (private until they are ready) and `ops`.
+  `newdawn`, `mxm-model-drums`, `mxm-chaos-drums` and `mxm-tracker` (private until they are ready) and `ops`.
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.
 
