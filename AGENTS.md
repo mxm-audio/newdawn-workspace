@@ -39,6 +39,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `instruments/<name>/` (12), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06) and `mxm-chaos-drums` (2026-11-02) private until they are ready; `mxm-fx-eq-n` public since 2026-10-16 |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses; in version 1.0 (2026-10-25) | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `apps/mxm-tracker/` | MXM Tracker, the web tracker: newDAWn's tracker on a phone, in step with it, its songs tutti projects; mainly a trial run of the format (the owner, 2026-10-21); after version 1.0 | `mxm-audio/mxm-tracker`, GPL-3.0, private until it is ready |
+| `apps/mxm-tutti-converter/` | MXM tutti Converter: watches folders and converts the projects in them into tutti, like a video proxy generator; Polyend Tracker projects first, any format both ways after, the formats' code in tutti (the owner, 2026-11-03); after version 1.0 | `mxm-audio/mxm-tutti-converter`, GPL-3.0, private until it is ready |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
 | `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
@@ -103,7 +104,7 @@ step that repeats across repositories, rather than a loop by hand:
   `cargo update -p <crate>` in the repository you build.
 - `--only <names>`: repositories, or the groups `newdawn`, `kit` (mxm-kit alone, as in `link` and
   `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `player`, `format` (tutti),
-  `instruments`, `effects`, `plugins`, `tools`, `apps` (the web tracker).
+  `instruments`, `effects`, `plugins`, `tools`, `apps` (the web tracker, the tutti converter).
 
 Each public repository still builds and tests alone from a fresh clone: nothing in one may need this
 folder, and its docs must not send a contributor here.
@@ -164,7 +165,8 @@ folder, and its docs must not send a contributor here.
   `docs/plugin-conventions.md` (*Every plugin is a CLAP and a VST3*).
 - **Version 1.0 of the MXM collection is the focus** (the owner, 2026-10-25: "I need version 1 of
   the project to be published"): the 22 plugins, MXM Player, mxm-tools and tutti, every one through
-  every gate; newDAWn and the web tracker come after it. The plan is ops' `plans/plan-v1-release.md`.
+  every gate; newDAWn, the web tracker and the tutti converter come after it. The plan is ops'
+  `plans/plan-v1-release.md`.
 - **Until 1.0 nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
   releasing anything to anybody. No really."): no builds go to anyone, and the only tags are a
   release's, one per product (`v1.0.0`). **From 1.0 no release breaks a minor version**: a project,
@@ -172,7 +174,8 @@ folder, and its docs must not send a contributor here.
   released version stays installable**, for old tracks (the owner, 2026-10-25: "we dont releease
   anything that break minor versions. and older versions should be installable via the portal so
   you can work on old tracks it you want to"). `repos.txt` records `public` or `private` for each repository; the private ones are
-  `newdawn`, `mxm-model-drums`, `mxm-chaos-drums` and `mxm-tracker` (private until they are ready) and `ops`.
+  `newdawn`, `mxm-model-drums`, `mxm-chaos-drums`, `mxm-tracker` and `mxm-tutti-converter` (private
+  until they are ready) and `ops`.
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.
 
@@ -206,5 +209,7 @@ folder, and its docs must not send a contributor here.
 | `format/tutti/AGENTS.md` | tutti, the open audio project format: the spec and its versions, the schema, the examples and conformance fixtures, the docs, the reference crates and the JavaScript package |
 | `instruments/<name>/AGENTS.md`, `effects/<name>/AGENTS.md` | One product each, from the shared plugin conventions down |
 | `tools/mxm-tools/AGENTS.md` | The listener, room simulator and measurement tools |
+| `apps/mxm-tracker/AGENTS.md` | MXM Tracker, the web tracker: the page, its crates in WebAssembly, the round trip with newDAWn |
+| `apps/mxm-tutti-converter/AGENTS.md` | MXM tutti Converter: watching folders and converting through tutti's formats; the plan is ops' `plans/plan-tutti-converter.md` |
 | `wsl/AGENTS.md` | The Linux distros, and how to run a repository's checks in them |
 | `ops/AGENTS.md` | The split, publishing and move scripts |
