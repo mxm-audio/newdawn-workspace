@@ -101,7 +101,11 @@ step that repeats across repositories, rather than a loop by hand:
   2026-10-15). `link` writes a marked block into the root
   `.cargo/config.toml`, which Cargo finds from every repository; `unlink` removes it and restores the
   lockfiles `link` changed. `push` refuses while linked. If the kit's version changed, run
-  `cargo update -p <crate>` in the repository you build.
+  `cargo update -p <crate>` in the repository you build. **While other sessions build here, link
+  for the change's repositories alone** (the owner, 2026-11-04: "Scoped patches"): the same patch
+  in each one's own git-ignored `.cargo/config.toml`, for a repository another session builds in
+  in a worktree of it with its own build folder; the board told; undone before any push, each
+  patch deleted and each lock restored and checked for local paths.
 - `--only <names>`: repositories, or the groups `newdawn`, `kit` (mxm-kit alone, as in `link` and
   `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `player`, `format` (tutti),
   `instruments`, `effects`, `plugins`, `tools`, `apps` (the web tracker, the tutti converter).
