@@ -8,11 +8,13 @@ kit/mxm-kit https://github.com/mxm-audio/mxm-kit.git public
 kit/nice-plug https://github.com/mxm-audio/nice-plug.git public
 kit/nice-plug-egui https://github.com/mxm-audio/nice-plug-egui.git public
 libs/mxm-macro-osc https://github.com/mxm-audio/mxm-macro-osc.git public  # the Plaits port, bit for bit (the owner, 2026-11-05)
+libs/mxm-modal-voice https://github.com/mxm-audio/mxm-modal-voice.git private  # the Elements port, bit for bit; private until the owner's word (2026-11-05)
 player/mxm-player https://github.com/mxm-audio/mxm-player.git public
 format/tutti https://github.com/mxm-audio/tutti.git public  # the open audio project format (the owner, 2026-10-20)
 instruments/mxm-creative-sampler https://github.com/mxm-audio/mxm-creative-sampler.git public
 instruments/mxm-chaos-drums https://github.com/mxm-audio/mxm-chaos-drums.git private  # private until it is ready (the owner, 2026-11-02)
 instruments/mxm-drum-machine https://github.com/mxm-audio/mxm-drum-machine.git public
+instruments/mxm-modal-synth https://github.com/mxm-audio/mxm-modal-synth.git private  # private until it is ready (the owner, 2026-11-05)
 instruments/mxm-model-drums https://github.com/mxm-audio/mxm-model-drums.git private  # private until it is ready (the owner, 2026-10-06)
 instruments/mxm-mono-00 https://github.com/mxm-audio/mxm-mono-00.git public
 instruments/mxm-mono-01 https://github.com/mxm-audio/mxm-mono-01.git public

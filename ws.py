@@ -37,7 +37,7 @@ this); `ws` is how the workspace does the same step everywhere at once.
 `update` and `install` fetch first and refuse a repository whose checkout is behind its upstream.
 
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
-forks (nice-plug, nice-plug-egui, egui-baseview, baseview), libs (= mxm-macro-osc), player,
+forks (nice-plug, nice-plug-egui, egui-baseview, baseview), libs (mxm-macro-osc, mxm-modal-voice), player,
 format (= tutti), instruments, effects, plugins (= instruments + effects), tools, apps (the web
 tracker), ops, all (the default).
 """
