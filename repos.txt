@@ -7,6 +7,7 @@ kit/baseview https://github.com/mxm-audio/baseview.git public
 kit/mxm-kit https://github.com/mxm-audio/mxm-kit.git public
 kit/nice-plug https://github.com/mxm-audio/nice-plug.git public
 kit/nice-plug-egui https://github.com/mxm-audio/nice-plug-egui.git public
+libs/mxm-macro-osc https://github.com/mxm-audio/mxm-macro-osc.git public  # the Plaits port, bit for bit (the owner, 2026-11-05)
 player/mxm-player https://github.com/mxm-audio/mxm-player.git public
 format/tutti https://github.com/mxm-audio/tutti.git public  # the open audio project format (the owner, 2026-10-20)
 instruments/mxm-creative-sampler https://github.com/mxm-audio/mxm-creative-sampler.git public

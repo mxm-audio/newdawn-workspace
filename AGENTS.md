@@ -34,6 +34,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `newdawn/` | The DAW; after version 1.0 (2026-10-25) | `maxmcorp/newDAWn`, private until it is ready (2026-10-06); GPL-3.0 |
 | `kit/mxm-kit/` | The shared crates every instrument and the DAW use | `mxm-audio/mxm-kit`, MIT |
 | `kit/nice-plug/`, `kit/nice-plug-egui/`, `kit/egui-baseview/`, `kit/baseview/` | Forks: upstream plus each `PATCHES.md`; baseview's (2026-10-07) draws Windows frames a busy host cannot starve; nice-plug-egui's (2026-10-16) lets an editor keep only the keys it uses, the rest going to the host | `mxm-audio`, ISC and MIT/Apache |
+| `libs/mxm-macro-osc/` | Plaits' voice and its 24 engines, ported to Rust from Emilie Gillet's MIT code and bit identical to her C++; split from mxm-thanks-eg, public (the owner, 2026-11-05: "since it is done we might as well make it public") | `mxm-audio/mxm-macro-osc`, MIT |
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in, and in version 1.0 a standalone host (2026-10-25); no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09), and tutti projects, its setup saved and opened in the format newDAWn uses (2026-10-21) | `mxm-audio/mxm-player`, GPL-3.0 |
 | `format/tutti/` | tutti, the open audio project format (the owner, 2026-10-20): its spec, schema, examples, docs and reference crates; newDAWn is its first consumer, MXM Player its first in version 1.0 (2026-10-25). No file IO in the core, so it builds for the web too | `mxm-audio/tutti`, MIT |
 | `instruments/<name>/` (13), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06), `mxm-chaos-drums` (2026-11-02) and `mxm-thanks-eg` (2026-11-04) private until they are ready; `mxm-fx-eq-n` public since 2026-10-16 |
@@ -107,8 +108,9 @@ step that repeats across repositories, rather than a loop by hand:
   in a worktree of it with its own build folder; the board told; undone before any push, each
   patch deleted and each lock restored and checked for local paths.
 - `--only <names>`: repositories, or the groups `newdawn`, `kit` (mxm-kit alone, as in `link` and
-  `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `player`, `format` (tutti),
-  `instruments`, `effects`, `plugins`, `tools`, `apps` (the web tracker, the tutti converter).
+  `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `libs` (mxm-macro-osc), `player`,
+  `format` (tutti), `instruments`, `effects`, `plugins`, `tools`, `apps` (the web tracker, the
+  tutti converter).
 
 Each public repository still builds and tests alone from a fresh clone: nothing in one may need this
 folder, and its docs must not send a contributor here.
@@ -119,8 +121,9 @@ folder, and its docs must not send a contributor here.
   makes the CI run... We are in pre-alpha and development speed is more important than
   correctness"). Each `Cargo.toml` names every mxm-audio dependency, the forks included, with
   `branch = "main"`; its `Cargo.lock` pins the exact commit. `python ws.py update` moves a
-  repository to the current mains, upstream first: forks, kit, player, the products whose crates
-  others use (mono-00, mono-01, poly-06, classic-verb, creative-sampler), tools, then the rest.
+  repository to the current mains, upstream first: forks, kit, libs, player, the products whose
+  crates others use (mono-00, mono-01, poly-06, classic-verb, creative-sampler), tools, then the
+  rest.
   The old tags stay where they are; `test-bundles.txt` still names them, because a fetch clone is
   reused and must not move. A change across repositories is built and tested first with
   `python ws.py link`, which must be undone before any push.
@@ -209,6 +212,7 @@ folder, and its docs must not send a contributor here.
 |---|---|
 | `newdawn/AGENTS.md` | The DAW: its contracts and its own chain; the vision and open questions in its `docs/vision.md`, the decisions in its `NOTES.md` |
 | `kit/mxm-kit/AGENTS.md` | The kit's crates, their MSRVs, the design system and theory docs |
+| `libs/mxm-macro-osc/AGENTS.md` | The Plaits port: the porting rules that keep it bit identical, the arena, the reference cases |
 | `player/mxm-player/AGENTS.md` | MXM Player and its test harness |
 | `format/tutti/AGENTS.md` | tutti, the open audio project format: the spec and its versions, the schema, the examples and conformance fixtures, the docs, the reference crates and the JavaScript package |
 | `instruments/<name>/AGENTS.md`, `effects/<name>/AGENTS.md` | One product each, from the shared plugin conventions down |

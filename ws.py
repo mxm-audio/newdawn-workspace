@@ -37,8 +37,9 @@ this); `ws` is how the workspace does the same step everywhere at once.
 `update` and `install` fetch first and refuse a repository whose checkout is behind its upstream.
 
 Every command takes --only <name,...>: repository names, or the groups newdawn, kit (= mxm-kit),
-forks (nice-plug, nice-plug-egui, egui-baseview, baseview), player, format (= tutti), instruments,
-effects, plugins (= instruments + effects), tools, apps (the web tracker), ops, all (the default).
+forks (nice-plug, nice-plug-egui, egui-baseview, baseview), libs (= mxm-macro-osc), player,
+format (= tutti), instruments, effects, plugins (= instruments + effects), tools, apps (the web
+tracker), ops, all (the default).
 """
 import glob
 import hashlib
@@ -57,7 +58,7 @@ ORG = "https://github.com/mxm-audio"
 REPO_LIST = ROOT / "repos.txt"
 CONFIG = ROOT / ".cargo" / "config.toml"
 LINK_STATE = ROOT / ".cargo" / "ws-link.json"
-GROUPS = ["newdawn", "kit", "player", "format", "instruments", "effects", "tools", "apps", "ops"]
+GROUPS = ["newdawn", "kit", "libs", "player", "format", "instruments", "effects", "tools", "apps", "ops"]
 # `link` owns only this block of the root config; anything else there (sccache, say) is kept.
 BEGIN, END = "# >>> ws link", "# <<< ws link"
 
