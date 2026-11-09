@@ -39,7 +39,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `libs/mxm-twf-voice/` | The TWF voice (Targeted Wavetable Filtering), lifted with its history out of mxm-model-drums so that it and mxm-twf-synth play one voice (the owner, 2026-11-09: "It is ok to make some crates for shared code if there is any"; its name and its private home the owner's); **no consumer pays for another's features, in sound or in CPU** ("the sharec code must not come at the cost of more CPU for any consumer of the code") | `mxm-audio/mxm-twf-voice`, GPL-3.0, private |
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in, and in version 1.0 a standalone host (2026-10-25); no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09), and tutti projects, its setup saved and opened in the format newDAWn uses (2026-10-21) | `mxm-audio/mxm-player`, GPL-3.0 |
 | `format/tutti/` | tutti, the open audio project format (the owner, 2026-10-20): its spec, schema, examples, docs and reference crates; newDAWn is its first consumer, MXM Player its first in version 1.0 (2026-10-25). No file IO in the core, so it builds for the web too | `mxm-audio/tutti`, MIT |
-| `instruments/<name>/` (14), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06), `mxm-chaos-drums` (2026-11-02) and `mxm-thanks-eg` (2026-11-04) private until they are ready; `mxm-fx-eq-n` public since 2026-10-16, `mxm-modal-synth` since 2026-11-05 |
+| `instruments/<name>/` (15), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06), `mxm-chaos-drums` (2026-11-02), `mxm-thanks-eg` (2026-11-04) and `mxm-twf-synth` (2026-11-09) private until they are ready; `mxm-fx-eq-n` public since 2026-10-16, `mxm-modal-synth` since 2026-11-05 |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses; in version 1.0 (2026-10-25) | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `apps/mxm-tracker/` | MXM Tracker, the web tracker: newDAWn's tracker on a phone, in step with it, its songs tutti projects; mainly a trial run of the format (the owner, 2026-10-21); after version 1.0 | `mxm-audio/mxm-tracker`, GPL-3.0, private until it is ready |
 | `apps/mxm-tutti-converter/` | MXM tutti Converter: watches folders and converts the projects in them into tutti, like a video proxy generator; Polyend Tracker projects first, any format both ways after, the formats' code in tutti (the owner, 2026-11-03); after version 1.0 | `mxm-audio/mxm-tutti-converter`, GPL-3.0, private until it is ready |
@@ -194,8 +194,8 @@ folder, and its docs must not send a contributor here.
   released version stays installable**, for old tracks (the owner, 2026-10-25: "we dont releease
   anything that break minor versions. and older versions should be installable via the portal so
   you can work on old tracks it you want to"). `repos.txt` records `public` or `private` for each repository; the private ones are
-  `newdawn`, `mxm-model-drums`, `mxm-chaos-drums`, `mxm-thanks-eg`, `mxm-tracker` and
-  `mxm-tutti-converter` (private until they are ready) and `ops`.
+  `newdawn`, `mxm-model-drums`, `mxm-chaos-drums`, `mxm-thanks-eg`, `mxm-twf-synth`, `mxm-twf-voice`,
+  `mxm-tracker` and `mxm-tutti-converter` (private until they are ready) and `ops`.
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.
 

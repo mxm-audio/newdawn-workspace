@@ -26,6 +26,7 @@ instruments/mxm-mono-pr1 https://github.com/mxm-audio/mxm-mono-pr1.git public
 instruments/mxm-para-07 https://github.com/mxm-audio/mxm-para-07.git public
 instruments/mxm-poly-06 https://github.com/mxm-audio/mxm-poly-06.git public
 instruments/mxm-thanks-eg https://github.com/mxm-audio/mxm-thanks-eg.git private  # private until it is ready (the owner, 2026-11-04)
+instruments/mxm-twf-synth https://github.com/mxm-audio/mxm-twf-synth.git private  # struck and plucked instruments on TWF; private until it is ready (the owner, 2026-11-09: "mxm-twf-synth is the name")
 effects/mxm-bucket-delay https://github.com/mxm-audio/mxm-bucket-delay.git public
 effects/mxm-chorus-06 https://github.com/mxm-audio/mxm-chorus-06.git public
 effects/mxm-classic-verb https://github.com/mxm-audio/mxm-classic-verb.git public
