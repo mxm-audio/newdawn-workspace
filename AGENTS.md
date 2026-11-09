@@ -36,6 +36,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `kit/nice-plug/`, `kit/nice-plug-egui/`, `kit/egui-baseview/`, `kit/baseview/` | Forks: upstream plus each `PATCHES.md`; baseview's (2026-10-07) draws Windows frames a busy host cannot starve; nice-plug-egui's (2026-10-16) lets an editor keep only the keys it uses, the rest going to the host | `mxm-audio`, ISC and MIT/Apache |
 | `libs/mxm-macro-osc/` | Plaits' voice and its 24 engines, ported to Rust from Emilie Gillet's MIT code and bit identical to her C++; split from mxm-thanks-eg, public (the owner, 2026-11-05: "since it is done we might as well make it public") | `mxm-audio/mxm-macro-osc`, MIT |
 | `libs/mxm-modal-voice/` | Elements' modal voice, its exciters, resonators, reverb and hidden voice, ported to Rust from Emilie Gillet's MIT code and bit identical to her C++ (the owner, 2026-11-05: "And a free rust crate too"); public, with MXM Modal Synth (the owner, 2026-11-05: "publish this synth too") | `mxm-audio/mxm-modal-voice`, MIT |
+| `libs/mxm-twf-voice/` | The TWF voice (Targeted Wavetable Filtering), lifted with its history out of mxm-model-drums so that it and mxm-twf-synth play one voice (the owner, 2026-11-09: "It is ok to make some crates for shared code if there is any"; its name and its private home the owner's); **no consumer pays for another's features, in sound or in CPU** ("the sharec code must not come at the cost of more CPU for any consumer of the code") | `mxm-audio/mxm-twf-voice`, GPL-3.0, private |
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in, and in version 1.0 a standalone host (2026-10-25); no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09), and tutti projects, its setup saved and opened in the format newDAWn uses (2026-10-21) | `mxm-audio/mxm-player`, GPL-3.0 |
 | `format/tutti/` | tutti, the open audio project format (the owner, 2026-10-20): its spec, schema, examples, docs and reference crates; newDAWn is its first consumer, MXM Player its first in version 1.0 (2026-10-25). No file IO in the core, so it builds for the web too | `mxm-audio/tutti`, MIT |
 | `instruments/<name>/` (14), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06), `mxm-chaos-drums` (2026-11-02) and `mxm-thanks-eg` (2026-11-04) private until they are ready; `mxm-fx-eq-n` public since 2026-10-16, `mxm-modal-synth` since 2026-11-05 |
@@ -109,7 +110,7 @@ step that repeats across repositories, rather than a loop by hand:
   in a worktree of it with its own build folder; the board told; undone before any push, each
   patch deleted and each lock restored and checked for local paths.
 - `--only <names>`: repositories, or the groups `newdawn`, `kit` (mxm-kit alone, as in `link` and
-  `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `libs` (mxm-macro-osc, mxm-modal-voice), `player`,
+  `bump`), `forks` (nice-plug, nice-plug-egui, egui-baseview), `libs` (mxm-macro-osc, mxm-modal-voice, mxm-twf-voice), `player`,
   `format` (tutti), `instruments`, `effects`, `plugins`, `tools`, `apps` (the web tracker, the
   tutti converter).
 
@@ -154,6 +155,17 @@ folder, and its docs must not send a contributor here.
 - **Bit-exact pins are Windows'.** Golden digests and recorded renders hold Windows' bits, because
   each platform's maths library rounds differently. Elsewhere a test compares within rounding or
   skips the pin (the owner, 2026-10-06).
+- **Look before reporting** (the owner, 2026-11-09: "this kind of visual display of the sounds is
+  really helping you ... make it a canonical part of your process", and "I expect we will be
+  building a lot of instruments this way"). Whatever renders or measures a set of sounds (models
+  against their recordings, an effect's output against its input) ends by drawing the set with
+  mxm-tools' `sheets/sheets.py`: every sound beside its siblings, sized for an agent to read whole,
+  a pitch check, and the sounds furthest from their siblings framed. Look at every sheet before
+  anything about the set reaches the owner: **what one sound has and its siblings do not is suspect
+  until explained**; a number the listener ranks low can hide it (the marimba's first sheets found
+  nine models 5–15 cents off pitch). A tool prints each picture as `LOOK: <path>`; the hook
+  `~/.claude/hooks/look_before_reporting.py` puts the unread ones in the agent's context and holds
+  the turn's end once until each is read.
 - **One keyboard language, newDAWn's, in the DAW and every MXM editor** (the owner, 2026-10-06 to
   2026-10-08). The editors read it through mxm-kit's cursor (`mxm_ui::navigation`, engine
   `mxm-keys`), and **one keymap file**: the keymap in use is the one chosen in the folder they all
@@ -215,6 +227,7 @@ folder, and its docs must not send a contributor here.
 | `kit/mxm-kit/AGENTS.md` | The kit's crates, their MSRVs, the design system and theory docs |
 | `libs/mxm-macro-osc/AGENTS.md` | The Plaits port: the porting rules that keep it bit identical, the arena, the reference cases |
 | `libs/mxm-modal-voice/AGENTS.md` | The Elements port: the porting rules that keep it bit identical, the static zeros, the reference cases |
+| `libs/mxm-twf-voice/AGENTS.md` | The TWF voice shared by the drums and mxm-twf-synth: every consumer bit-identical and no costlier through a change made for another |
 | `player/mxm-player/AGENTS.md` | MXM Player and its test harness |
 | `format/tutti/AGENTS.md` | tutti, the open audio project format: the spec and its versions, the schema, the examples and conformance fixtures, the docs, the reference crates and the JavaScript package |
 | `instruments/<name>/AGENTS.md`, `effects/<name>/AGENTS.md` | One product each, from the shared plugin conventions down |

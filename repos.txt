@@ -9,6 +9,7 @@ kit/nice-plug https://github.com/mxm-audio/nice-plug.git public
 kit/nice-plug-egui https://github.com/mxm-audio/nice-plug-egui.git public
 libs/mxm-macro-osc https://github.com/mxm-audio/mxm-macro-osc.git public  # the Plaits port, bit for bit (the owner, 2026-11-05)
 libs/mxm-modal-voice https://github.com/mxm-audio/mxm-modal-voice.git public  # the Elements port, bit for bit (the owner, 2026-11-05)
+libs/mxm-twf-voice https://github.com/mxm-audio/mxm-twf-voice.git private  # the TWF voice, shared by mxm-model-drums and mxm-twf-synth (the owner, 2026-11-09)
 player/mxm-player https://github.com/mxm-audio/mxm-player.git public
 format/tutti https://github.com/mxm-audio/tutti.git public  # the open audio project format (the owner, 2026-10-20)
 instruments/mxm-creative-sampler https://github.com/mxm-audio/mxm-creative-sampler.git public

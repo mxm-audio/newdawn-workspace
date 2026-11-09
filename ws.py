@@ -599,7 +599,9 @@ def cmd_link(args):
         root = repos[repo][1]
         package = re.search(r'(?m)^\[package\][^\[]*?^name\s*=\s*"([^"]+)"',
                             (root / "Cargo.toml").read_text(encoding="utf-8"))
-        if package and repo in GIT_FORKS:
+        # A one-crate repository that is no crates.io fork is a library its dependents take by git
+        # (mxm-macro-osc, mxm-modal-voice, mxm-twf-voice), as baseview is: its git source is patched.
+        if package and (repo in GIT_FORKS or repo not in FORKS):
             lines.append(f'[patch."{ORG}/{repo}"]')
             lines.append(f'{package.group(1)} = {{ path = "{root.as_posix()}" }}')
             lines.append("")
