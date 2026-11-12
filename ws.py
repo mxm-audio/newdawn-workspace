@@ -8,8 +8,8 @@ this); `ws` is how the workspace does the same step everywhere at once.
     python ws.py status                      one row per repository: changes, unpushed, last commit, pins
     python ws.py reach                       what each changed repository's change reaches: the
                                              packages to test, or "docs only" / "comments only"
-    python ws.py check                       fmt, clippy and the tests the change reaches, Windows
-                                             only (other platforms are a later batch)
+    python ws.py check                       fmt, clippy and the tests the change reaches, on Linux
+                                             (other platforms are a later batch)
     python ws.py commit -m "message"         commit every changed repository with one message
     python ws.py push                        push every repository that is ahead (refused while linked)
     python ws.py tag                         refused: the only tags are a release's (the owner, 2026-10-25)
@@ -345,17 +345,37 @@ READ_BY = {
 }
 
 
+# The toolchain in `rust/` is Windows' (its `cargo.exe`): another system reaching this folder, Linux
+# on the same drive, uses its own (2026-11-11).
 def cargo_program():
     local = ROOT / "rust" / "cargo" / "bin" / "cargo.exe"
-    return str(local) if local.exists() else "cargo"
+    return str(local) if os.name == "nt" and local.exists() else "cargo"
 
 
 def cargo_env():
     env = dict(os.environ)
-    if (ROOT / "rust" / "rustup").exists():
+    if os.name == "nt" and (ROOT / "rust" / "rustup").exists():
         env.setdefault("RUSTUP_HOME", str(ROOT / "rust" / "rustup"))
         env.setdefault("CARGO_HOME", str(ROOT / "rust" / "cargo"))
     return env
+
+
+# Where builds go: `target-shared` and each repository's `target/`, or, with MXM_BUILD_ROOT set, the
+# same paths below it. A drive shared with Windows sets it on the other system, so neither's build
+# output stands in for the other's (Cargo trusts file times; 2026-11-11). A repository's staged
+# `target/bundled` (control maps, presets) stays where its xtask writes it, beside the sources.
+# Elsewhere than Windows, a folder holding Windows' toolchain is one Windows builds in too, and
+# MXM_BUILD_ROOT is required: without it a Linux run removed Windows' bundles from
+# `target-shared/bundled` as the last build's output (2026-11-11).
+def build_dir(folder):
+    root = os.environ.get("MXM_BUILD_ROOT")
+    if root:
+        return Path(root) / folder.relative_to(ROOT)
+    if os.name != "nt" and (ROOT / "rust" / "cargo" / "bin" / "cargo.exe").exists():
+        raise SystemExit(f"refused: {ROOT} is Windows' workspace too (its toolchain is in rust/), and a "
+                         f"build here would replace Windows' output; set MXM_BUILD_ROOT to a folder "
+                         f"of this system's own")
+    return folder
 
 
 def changed_files(path):
@@ -485,10 +505,7 @@ def cmd_reach(args):
 
 def cmd_check(args):
     """fmt, clippy and the tests the change reaches, on this machine, in every changed repository.
-    Windows only during the work (the owner, 2026-10-06); other platforms are a later batch."""
-    if "--linux" in args:
-        raise SystemExit("refused: Linux and macOS are checked later, together, when the owner asks "
-                         "(2026-10-06: \"Just work on windows and then test the rest later\")")
+    On Linux during the work (the owner, 2026-11-12); other platforms are a later batch."""
     repos = selected(args)
     targets = repos if "--only" in args else changed(repos)
     results = []
@@ -1031,7 +1048,7 @@ def cmd_install(args):
         plugins = {n: v for n, v in selected(args).items() if n in plugins}
     if linked():
         print(f"LINKED: the builds use the local repositories named in {CONFIG}")
-    target = ROOT / "target-shared"
+    target = build_dir(ROOT / "target-shared")
     # It installs each plugin itself, below, whichever kit the plugin is locked on: the kit's xtask
     # installing a bundle too (mxm-kit's `mxm-xtask`, 2026-10-13) would copy it twice.
     env = {**cargo_env(), "CARGO_TARGET_DIR": str(target), "MXM_INSTALL_CLAP": "0"}
@@ -1062,7 +1079,7 @@ def cmd_install(args):
             # in one shared folder one repository's would run for another's (2026-10-12, staging
             # mono-01's control map for poly-06). The plugin itself builds in the shared folder.
             command = [cargo_program(), "run", "--package", "xtask", "--release",
-                       "--target-dir", str(path / "target"), "--", "bundle", package, "--release"]
+                       "--target-dir", str(build_dir(path / "target")), "--", "bundle", package, "--release"]
             print(f"$ {' '.join(command)}", flush=True)
             code = subprocess.run(command, cwd=path, env=env).returncode
             if code or not (bundled / f"{bundle}.clap").exists():
@@ -1201,7 +1218,7 @@ def cmd_release(args):
     plat = release_platform()
     out = ROOT / "target-shared" / "release" / plat
     out.mkdir(parents=True, exist_ok=True)
-    target = ROOT / "target-shared"
+    target = build_dir(ROOT / "target-shared")
     env = {**cargo_env(), "CARGO_TARGET_DIR": str(target), "MXM_INSTALL_CLAP": "0"}
     refused = refuse_behind(products)
     entries, results = [], []
@@ -1217,7 +1234,7 @@ def cmd_release(args):
         if group == "player":
             print(f"\n=== {name}", flush=True)
             code = subprocess.run([sys.executable, "packaging/package.py", "--out", str(out)], cwd=path,
-                                  env={**cargo_env(), "CARGO_TARGET_DIR": str(path / "target")}).returncode
+                                  env={**cargo_env(), "CARGO_TARGET_DIR": str(build_dir(path / "target"))}).returncode
             version = package_versions(path).get("mxm-player", "?")
             made = sorted(out.glob(f"mxm-player-{version}-{plat}.*"))
             if code or not made:
@@ -1245,7 +1262,7 @@ def cmd_release(args):
             # As `install` runs the xtask: its own target folder, the plugin in the shared one.
             verb = "bundle-universal" if sys.platform == "darwin" else "bundle"
             command = [cargo_program(), "run", "--package", "xtask", "--release",
-                       "--target-dir", str(path / "target"), "--", verb, package, "--release"]
+                       "--target-dir", str(build_dir(path / "target")), "--", verb, package, "--release"]
             print(f"$ {' '.join(command)}", flush=True)
             code = subprocess.run(command, cwd=path, env=env).returncode
             if code or not built.exists():

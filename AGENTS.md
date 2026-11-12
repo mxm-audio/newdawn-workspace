@@ -72,7 +72,7 @@ step that repeats across repositories, rather than a loop by hand:
   only", or the packages to test (the changed ones and everything using them). Data a package's
   tests read from outside its folder reaches it too (`READ_BY`: the tracker's shared cases
   newdawn-ui's, the round trip's songs newdawn-protocol's).
-- `check`: fmt, then clippy and the fast-tier tests of just those packages, Windows only. A
+- `check`: fmt, then clippy and the fast-tier tests of just those packages, on Linux, where the work is. A
   plugin's `host-tests` (the slow tier) run only on purpose, for an audible change.
 - `commit -m "…"`, `push`, `pull`: every changed, ahead or behind repository, with one message.
 - `update`: moves each repository's mxm-audio dependencies to their current `main` and relocks;
@@ -82,8 +82,8 @@ step that repeats across repositories, rather than a loop by hand:
   with the new mains (2026-10-15). `pull` it, or merge one that has diverged.
 - `install`: bundles every plugin as checked out (release, into the shared `target-shared/`) and
   installs it, CLAP and VST3, in the standard plugin folders, where newDAWn, Bitwig and Ableton
-  find it: on Windows the system's (`C:\Program Files\Common Files\CLAP`, `…\VST3`), which this
-  user can write to; `MXM_CLAP_DIR` and `MXM_VST3_DIR` choose others (the owner, 2026-10-16: "Lets
+  find it: on Linux this user's (`~/.clap`, `~/.vst3`), on Windows the system's (`C:\Program Files\Common
+  Files\CLAP`, `…\VST3`), which this user can write to; `MXM_CLAP_DIR` and `MXM_VST3_DIR` choose others (the owner, 2026-10-16: "Lets
   keep it as standard as possible"). `--only` narrows it to some plugins. A plugin keeps the keys
   it was built with, so a machine catches up with `pull`, then `install`. **Every `cargo xtask
   bundle` installs its plugin there too** (the owner, 2026-10-13: "So the latest ones are always in
@@ -133,11 +133,11 @@ folder, and its docs must not send a contributor here.
   nice-plug or egui-baseview, Cargo resolves it instead and lists the fork under `[[patch.unused]]`,
   silently dropping our patches (egui-baseview 0.7.2, 2026-10-06). Refresh the fork onto it before
   relocking any plugin; `python ws.py status` warns when a lock shows an unused fork.
-- **Work and verify on Windows only; test the other platforms later, together** (the owner,
-  2026-10-06: "Just work on windows and then test the rest later. These runs takes faaar to long").
-  Before a push: `cargo fmt --all -- --check`, `cargo clippy` and the tests the change reaches, on
-  Windows, once. No Linux (WSL) or macOS run, and no waiting on CI, during the work: those come in
-  one batch when the owner asks. Code stays cross-platform all the same. **For version 1.0 the owner
+- **Work and verify on Linux; test the other platforms later, together** (the owner, 2026-11-12:
+  "I now work on linux. I will only boot into windows to test"; 2026-10-06, of the other platforms'
+  runs: "These runs takes faaar to long"). Before a push: `cargo fmt --all -- --check`, `cargo
+  clippy` and the tests the change reaches, on Linux, once. No Windows or macOS run, and no waiting
+  on CI, during the work: those come in one batch when the owner asks, Windows when they boot it. Code stays cross-platform all the same. **For version 1.0 the owner
   has asked** (2026-10-25) for the batch once their per-plugin review is done, and on every release
   candidate (ops' `plans/plan-v1-release.md`); cite that in `MXM_GATE_OK`. Not before: "we are going
   to change them anyway after my per plugin review".
@@ -154,7 +154,8 @@ folder, and its docs must not send a contributor here.
   be stable and tested").
 - **Bit-exact pins are Windows'.** Golden digests and recorded renders hold Windows' bits, because
   each platform's maths library rounds differently. Elsewhere a test compares within rounding or
-  skips the pin (the owner, 2026-10-06).
+  skips the pin (the owner, 2026-10-06). So the work on Linux checks within rounding, and the bits
+  are proved in the Windows batch.
 - **Look before reporting** (the owner, 2026-11-09: "this kind of visual display of the sounds is
   really helping you ... make it a canonical part of your process", and "I expect we will be
   building a lot of instruments this way"). Whatever renders or measures a set of sounds (models
@@ -210,6 +211,10 @@ folder, and its docs must not send a contributor here.
   **One exception, the pitch editor's clean-room worktree, `newDAWn-cleanroom`** (the owner,
   2026-10-16): beside the workspace folder, on its drive, so a `ws link` never reaches its builds and
   the workspace's repository never sees it. It goes, with its `target/`, once its work is merged.
+- **On Linux the workspace is `/mnt/workdisk-01/newDAWn`, the drive Windows keeps at `E:`**, so
+  Linux builds go below `MXM_BUILD_ROOT` (set in `~/.bashrc`), never into the `target/` folders
+  Windows builds in: Cargo trusts file times, and either's output would stand in for the other's.
+  `ws` refuses to build on Linux without it (2026-11-11). Linux uses its own toolchain, not `rust/`.
 - One build folder per repository, or one shared folder for checks across many. A worktree's own
   folder is the one exception, and goes once its work is merged: **a worktree never builds into
   the folder a checkout of its own repository builds in** (2026-10-16). Cargo knows a workspace
