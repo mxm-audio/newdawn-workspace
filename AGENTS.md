@@ -156,6 +156,14 @@ folder, and its docs must not send a contributor here.
   each platform's maths library rounds differently. Elsewhere a test compares within rounding or
   skips the pin (the owner, 2026-10-06). So the work on Linux checks within rounding, and the bits
   are proved in the Windows batch.
+- **One listening page for comparing sounds; don't invent a new one** (the owner, 2026-11-13: "Why
+  do you invent a new layout for every new html page where I compare sounds. You already have a
+  good template with spectograms and everythong"). Any HTML page where the owner compares sounds
+  (recordings against models, run against run) is mxm-twf-synth's `tools/page.py` and
+  `page.html`: aligned at the onset, one gain per take, and the four pictures of each sound
+  (onset, cycles, whole note, spectrogram with the difference) from mxm-drum-machine's `ab_plot.py`.
+  Run it, or extend that template if a page needs something it lacks. Build a different layout
+  only for a good reason, and tell the owner the reason first.
 - **Look before reporting** (the owner, 2026-11-09: "this kind of visual display of the sounds is
   really helping you ... make it a canonical part of your process", and "I expect we will be
   building a lot of instruments this way"). Whatever renders or measures a set of sounds (models
