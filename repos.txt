@@ -41,4 +41,5 @@ effects/mxm-shimmer https://github.com/mxm-audio/mxm-shimmer.git public
 tools/mxm-tools https://github.com/mxm-audio/mxm-tools.git public
 apps/mxm-tracker https://github.com/mxm-audio/mxm-tracker.git private  # the web tracker, private until it is ready (the owner, 2026-10-21)
 apps/mxm-tutti-converter https://github.com/mxm-audio/mxm-tutti-converter.git private  # the tutti converter, private until it is ready (the owner, 2026-11-03)
+apps/mxm-vocal-coach https://github.com/mxm-audio/mxm-vocal-coach.git private  # the singing teacher, private until it is ready (the owner, 2026-11-16)
 ops https://github.com/mxm-audio/newdawn-ops private  # the owner's private tooling, never public

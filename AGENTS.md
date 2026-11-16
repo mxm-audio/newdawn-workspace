@@ -43,6 +43,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses; in version 1.0 (2026-10-25) | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `apps/mxm-tracker/` | MXM Tracker, the web tracker: newDAWn's tracker on a phone, in step with it, its songs tutti projects; mainly a trial run of the format (the owner, 2026-10-21); after version 1.0 | `mxm-audio/mxm-tracker`, GPL-3.0, private until it is ready |
 | `apps/mxm-tutti-converter/` | MXM tutti Converter: watches folders and converts the projects in them into tutti, like a video proxy generator; Polyend Tracker projects first, any format both ways after, the formats' code in tutti (the owner, 2026-11-03); after version 1.0 | `mxm-audio/mxm-tutti-converter`, GPL-3.0, private until it is ready |
+| `apps/mxm-vocal-coach/` | MXM Vocal Coach: a desktop singing teacher that listens through newDAWn's live pitch tracker (`newdawn-tune`, a git dependency), with the student's own AI as the coach, in the app or through MCP; its lessons a DOX-like tree (the owner, 2026-11-15 and 2026-11-16); after version 1.0 | `mxm-audio/mxm-vocal-coach`, GPL-3.0, private until it is ready |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
 | `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
@@ -204,7 +205,7 @@ folder, and its docs must not send a contributor here.
   anything that break minor versions. and older versions should be installable via the portal so
   you can work on old tracks it you want to"). `repos.txt` records `public` or `private` for each repository; the private ones are
   `newdawn`, `mxm-model-drums`, `mxm-chaos-drums`, `mxm-thanks-eg`, `mxm-twf-synth`, `mxm-twf-voice`,
-  `mxm-tracker` and `mxm-tutti-converter` (private until they are ready) and `ops`.
+  `mxm-tracker`, `mxm-tutti-converter` and `mxm-vocal-coach` (private until they are ready) and `ops`.
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.
 
@@ -246,6 +247,7 @@ folder, and its docs must not send a contributor here.
 | `instruments/<name>/AGENTS.md`, `effects/<name>/AGENTS.md` | One product each, from the shared plugin conventions down |
 | `tools/mxm-tools/AGENTS.md` | The listener, room simulator and measurement tools |
 | `apps/mxm-tracker/AGENTS.md` | MXM Tracker, the web tracker: the page, its crates in WebAssembly, the round trip with newDAWn |
+| `apps/mxm-vocal-coach/AGENTS.md` | MXM Vocal Coach: the lessons, the core, the sound, the coach in the app and through MCP |
 | `apps/mxm-tutti-converter/AGENTS.md` | MXM tutti Converter: watching folders and converting through tutti's formats; the plan is ops' `plans/plan-tutti-converter.md` |
 | `wsl/AGENTS.md` | The Linux distros, and how to run a repository's checks in them |
 | `ops/AGENTS.md` | The split, publishing and move scripts |
