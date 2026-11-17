@@ -124,6 +124,10 @@ are in `AGENTS.md`; this is why they are so.
   focus on *Run anyway* (a dotted frame), and `spc` presses it. A taskbar button: `meta_l-t` once
   per button from the left. `vm.sh desktop` breaks on a path with a space: start a `.cmd` instead.
   Look with `screendump` after every step; the typed key is masked in any picture kept.
+- **Clicking in the VM**: a window without a visible focus ring (MXM Portal's) is driven by the
+  pointer. A `.ps1` calling `user32`'s `SetCursorPos` and `mouse_event`, started on the desktop with
+  `vm.sh desktop "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File <it> x y"`,
+  clicks at screen coordinates (the VM's screen is 1280×800 at 100 %); `screendump` gives them.
 - **Updates at shutdown**: an hour after a reset Windows Update had downloaded updates, and a
   shutdown stopped to install them ("updates are under way"). `vm.sh reset` now switches the VM off
   instead (nothing in it is kept), `vm.sh stop` shuts it down properly, and the answer file turns
