@@ -69,6 +69,12 @@ qemu_args() {
 launch() {
     rm -f "$PIDFILE" "$MONITOR"
     for arg in "${ARGS[@]}"; do [[ "$arg" != *[[:space:]\"\']* ]] || die "an argument with a space or a quote: $arg"; done
+    # A shell started outside the desktop (an agent's) lacks Hyprland's variable: take the running one's.
+    local runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr"
+    if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" && -d "$runtime" ]]; then
+        HYPRLAND_INSTANCE_SIGNATURE="$(ls -t "$runtime" | head -1)"
+        export HYPRLAND_INSTANCE_SIGNATURE
+    fi
     if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && command -v hyprctl >/dev/null && [[ "${MXM_VM_HEADLESS:-0}" != 1 ]]; then
         hyprctl dispatch "hl.dsp.exec_cmd(\"${ARGS[*]}\", { workspace = \"4 silent\" })" >/dev/null
     else
@@ -102,8 +108,9 @@ build() {
     echo "installing Windows from $(basename "$iso"): about half an hour, unattended; it shuts down when done"
     launch
     # The ISO asks "Press any key to boot from CD or DVD" once: answer it for the first seconds only,
-    # so setup's own reboots go on from the disk.
-    for _ in $(seq 40); do monitor "sendkey ret"; sleep 0.5; done
+    # so setup's own reboots go on from the disk. With `x`, not Enter: setup's window comes up within
+    # seconds, and Enter there pressed its Cancel button (2026-11-17); `x` is no button's shortcut.
+    for _ in $(seq 40); do monitor "sendkey x"; sleep 0.5; done
     wait_for_exit
     local used; used="$(qemu-img info --output=json "$DISK" | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["actual-size"])')"
     (( used > 8 * 1024 * 1024 * 1024 )) || die "the VM stopped before Windows was installed (its disk holds $((used / 1024 / 1024)) MB); \`vm.sh build --again\`"

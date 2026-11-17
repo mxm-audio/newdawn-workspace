@@ -202,7 +202,8 @@ folder, and its docs must not send a contributor here.
 - **Until 1.0 nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
   releasing anything to anybody. No really."): no builds go to anyone but the beta testers, through
   the portal and its beta key (the owner, 2026-11-17: "I really need som beta testers"), and the only tags are a
-  release's, one per product (`v1.0.0`). **From 1.0 no release breaks a minor version**: a project,
+  release's, one per product (`v1.0.0`). **Versions are `x.y.z`**: major changes, features, bug fixes
+  and maintenance (the owner, 2026-11-17). **From 1.0 no release breaks a minor version**: a project,
   a saved state or a parameter id one writes opens in every later release of its major; **and every
   released version stays installable**, for old tracks (the owner, 2026-10-25: "we dont releease
   anything that break minor versions. and older versions should be installable via the portal so
