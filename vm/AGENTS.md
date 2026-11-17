@@ -46,10 +46,11 @@ owner: "cant we just just the 90 day trial, and then reinstall it every 90 days?
   `/dev/kvm`. The ISO: the Evaluation Center's Enterprise one, alone in `vm/windows/` (`NOTES.md`).
 - **Windows builds for it, on Linux**: `XWIN_ACCEPT_LICENSE=1`, `eval "$(cargo xwin env --target
   x86_64-pc-windows-msvc)"`, **`unset RUSTFLAGS`** (cargo-xwin sets it empty, and Cargo then ignores
-  the Windows flags), add `-C target-feature=+crt-static` to
-  `CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS`, then build with `--target
-  x86_64-pc-windows-msvc` (a plugin: its xtask's `bundle`, with `MXM_INSTALL_CLAP=0`). Without the
-  static C runtime nothing loads on a fresh Windows (`NOTES.md`).
+  any Windows flag in `CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS`), then build with `--target
+  x86_64-pc-windows-msvc` (a plugin: its xtask's `bundle`, with `MXM_INSTALL_CLAP=0`).
+- **A fresh Windows has no Visual C++ runtime, and our builds need it**: the portal installs it for
+  users (the owner, 2026-11-17); in the VM, install it before testing a plugin or the player, except
+  when testing the portal's own install from the clean snapshot (`NOTES.md`).
 - Check a DLL loads: copy in a `.ps1` that calls `LoadLibrary` and run it with `vm.sh ssh`; error 126
   is a missing DLL. `llvm-objdump -p <file> | grep "DLL Name"` lists what a build imports.
 

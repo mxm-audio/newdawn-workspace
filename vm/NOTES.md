@@ -78,4 +78,8 @@ are in `AGENTS.md`; this is why they are so.
   2026-11-17). A plugin or program built the default way imports it, and `LoadLibrary` fails with
   error 126 on such a machine: mxm-fx-delay did. Built with `-C target-feature=+crt-static` it
   imports only Windows' own DLLs and loads (167 KB larger). Machines with a DAW usually have the
-  runtime, which is why it never showed; a tester's may not.
+  runtime, which is why it never showed; a tester's may not. **The owner's ruling** (2026-11-17:
+  *"Can the portal not just install once and for all it is it is needed and dont exist?"*): the
+  portal's installer installs Microsoft's runtime when it's missing, and only the portal is built
+  static (ops' `plans/plan-sales-portal.md` §5). So a plugin tested in the VM needs the runtime
+  installed there first, except when the test is the portal's own install on a clean machine.
