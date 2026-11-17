@@ -194,7 +194,7 @@ folder, and its docs must not send a contributor here.
   anybody wants the linux specific ones they can make it themselves"). The rules are mxm-kit's
   `docs/plugin-conventions.md` (*Every plugin is a CLAP and a VST3*).
 - **Version 1.0 of the MXM collection is the focus** (the owner, 2026-10-25: "I need version 1 of
-  the project to be published"): the 22 plugins, MXM Player, mxm-tools and tutti, every one through
+  the project to be published"): the 25 plugins, MXM Player, mxm-tools and tutti, every one through
   every gate; newDAWn, the web tracker and the tutti converter come after it. The plan is ops'
   `plans/plan-v1-release.md`.
 - **Until 1.0 nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
