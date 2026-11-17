@@ -124,6 +124,11 @@ are in `AGENTS.md`; this is why they are so.
   focus on *Run anyway* (a dotted frame), and `spc` presses it. A taskbar button: `meta_l-t` once
   per button from the left. `vm.sh desktop` breaks on a path with a space: start a `.cmd` instead.
   Look with `screendump` after every step; the typed key is masked in any picture kept.
+- **A hard stop spoils a file being written** (2026-11-17): QEMU quit mid-install, and the
+  portal's `state.json` came back as 334 bytes of zeros, Windows having recorded the length but
+  not the data; the portal would not start. Its state is now synced before it replaces the last
+  one, with a fallback (mxm-portal `crates/portal/AGENTS.md`). Don't close the VM's window while a
+  test writes.
 - **Clicking in the VM**: a window without a visible focus ring (MXM Portal's) is driven by the
   pointer. A `.ps1` calling `user32`'s `SetCursorPos` and `mouse_event`, started on the desktop with
   `vm.sh desktop "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File <it> x y"`,
