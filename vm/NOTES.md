@@ -95,8 +95,35 @@ are in `AGENTS.md`; this is why they are so.
   writable by Users, and Microsoft's runtime 14.52), the beta key activated, `install all`: 25
   products in 6 seconds over the LAN; index 2 (mxm-drum-machine added) picked up by `install all`
   again. A plugin loaded from the MXM folder; MXM Player, installed by the portal, scanned all 50
-  bundles inside the MXM subfolders (its first start about 40 seconds, in software). The UAC prompt
-  of a double-click was not seen: an SSH session runs elevated already.
+  bundles inside the MXM subfolders (its first start about 40 seconds, in software). An SSH session
+  runs elevated already, so its UAC prompt is the next test's.
+- **The double-click, 2026-11-17**, from the clean snapshot, as a tester meets it: downloaded with
+  the Mark of the Web (a `Zone.Identifier` stream, `ZoneId=3`, as a browser writes it; PowerShell's
+  `Invoke-WebRequest` writes none), opened through `explorer.exe` on the desktop, which is how
+  SmartScreen gets to look. SmartScreen's *"Windows protected your PC"*, *More info*, *Run anyway*;
+  Defender's ten-second cloud scan; then the UAC prompt. **It waited on the taskbar**, a flashing
+  shield behind the portal's window, where a tester could miss it: PowerShell had asked for it, and
+  Windows shows the prompt at once only to the program in front (on Windows 11 that is Windows
+  Terminal). The portal now asks itself, with the window in front as the owner (mxm-portal
+  `crates/portal/AGENTS.md`); then the prompt came up at once, from the download and from the
+  Start-menu entry. No answered *"Windows' question was answered No; run MXM Portal again"*; the
+  Start-menu entry then set up, took the key and installed all 26. The installed copy has no Mark of
+  the Web, so SmartScreen asks once only.
+- **Formats and uninstalling, 2026-11-17**, in the rebuilt VM: VST3 chosen on the first double-click
+  installed 25 VST3s and no CLAP; `mxm-portal formats both` added the 25 CLAPs (24 control maps) at
+  each plugin's version. The uninstall Windows' *Installed apps* runs took out every plugin, the
+  presets, MXM Player, the portal's state and entries and both `MXM` folders, but left the program:
+  the shell meant to delete it after the portal exits shared the portal's console, and Windows
+  Terminal closed both together. It now waits on the portal's process in a hidden console of its
+  own, and the program goes when its window is closed. **Typing into the VM's window while an agent
+  drives it sends the keys elsewhere**: a key went into Windows' Start search, which may pass what
+  is typed to Bing.
+- **Driving the VM's desktop by keys**: QEMU's monitor `mouse_move` goes to the PS/2 mouse, not the
+  tablet, and moves nothing that lands; `sendkey` works everywhere, the UAC prompt's secure desktop
+  too (`alt-y`, `alt-n`). SmartScreen: `tab`, `ret` opens *More info*; then `tab` twice puts the
+  focus on *Run anyway* (a dotted frame), and `spc` presses it. A taskbar button: `meta_l-t` once
+  per button from the left. `vm.sh desktop` breaks on a path with a space: start a `.cmd` instead.
+  Look with `screendump` after every step; the typed key is masked in any picture kept.
 - **Updates at shutdown**: an hour after a reset Windows Update had downloaded updates, and a
   shutdown stopped to install them ("updates are under way"). `vm.sh reset` now switches the VM off
   instead (nothing in it is kept), `vm.sh stop` shuts it down properly, and the answer file turns

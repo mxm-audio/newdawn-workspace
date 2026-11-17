@@ -51,6 +51,10 @@ owner: "cant we just just the 90 day trial, and then reinstall it every 90 days?
 - **A fresh Windows has no Visual C++ runtime, and our builds need it**: the portal installs it for
   users (the owner, 2026-11-17); in the VM, install it before testing a plugin or the player, except
   when testing the portal's own install from the clean snapshot (`NOTES.md`).
+- **A double-click is tested as a tester meets it**: the file with the Mark of the Web (a browser's
+  `Zone.Identifier`), opened through `explorer.exe` with `vm.sh desktop`, never over SSH, which runs
+  elevated and skips SmartScreen and UAC. The dialogs are answered with the monitor's `sendkey`
+  (`NOTES.md`, *Driving the VM's desktop by keys*).
 - Check a DLL loads: copy in a `.ps1` that calls `LoadLibrary` and run it with `vm.sh ssh`; error 126
   is a missing DLL. `llvm-objdump -p <file> | grep "DLL Name"` lists what a build imports.
 
