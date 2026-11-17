@@ -43,10 +43,12 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses; in version 1.0 (2026-10-25) | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `apps/mxm-tracker/` | MXM Tracker, the web tracker: newDAWn's tracker on a phone, in step with it, its songs tutti projects; mainly a trial run of the format (the owner, 2026-10-21); after version 1.0 | `mxm-audio/mxm-tracker`, GPL-3.0, private until it is ready |
 | `apps/mxm-tutti-converter/` | MXM tutti Converter: watches folders and converts the projects in them into tutti, like a video proxy generator; Polyend Tracker projects first, any format both ways after, the formats' code in tutti (the owner, 2026-11-03); after version 1.0 | `mxm-audio/mxm-tutti-converter`, GPL-3.0, private until it is ready |
+| `apps/mxm-portal/` | MXM Portal: the app that installs and updates the collection and keeps the key; Windows first, for the beta testers (the owner, 2026-11-17) | `mxm-audio/mxm-portal`, private: "It is the paid part of the project" |
 | `apps/mxm-vocal-coach/` | MXM Vocal Coach: a desktop singing teacher that listens through newDAWn's live pitch tracker (`newdawn-tune`, a git dependency), with the student's own AI as the coach, in the app or through MCP; its lessons a DOX-like tree (the owner, 2026-11-15 and 2026-11-16); after version 1.0 | `mxm-audio/mxm-vocal-coach`, GPL-3.0, private until it is ready |
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
 | `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
+| `vm/` | The Windows 11 test VM on Linux (QEMU and KVM, Microsoft's 90-day evaluation), built by one script | this workspace |
 | `collection-tests/` | Tests across every product, waiting for this workspace's test package | this workspace |
 | `research/` | The research behind the products: the documents read, the recordings the models are fitted to, and what may cross into a public repository; cited as `research:<path>`, never a build dependency. Copyrighted material in it is saved locally only, never committed (the owner, 2026-10-13: "The rule is that copyrighted research material is only saved locally"). Out of `archive/` since 2026-10-13 | `maxmcorp/mxm-collection-research`, private |
 | `archive/` | The monorepo (archived on GitHub 2026-10-07; its worktrees' work is on `archive/*` branches); read-only | private |
@@ -198,7 +200,8 @@ folder, and its docs must not send a contributor here.
   every gate; newDAWn, the web tracker and the tutti converter come after it. The plan is ops'
   `plans/plan-v1-release.md`.
 - **Until 1.0 nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
-  releasing anything to anybody. No really."): no builds go to anyone, and the only tags are a
+  releasing anything to anybody. No really."): no builds go to anyone but the beta testers, through
+  the portal and its beta key (the owner, 2026-11-17: "I really need som beta testers"), and the only tags are a
   release's, one per product (`v1.0.0`). **From 1.0 no release breaks a minor version**: a project,
   a saved state or a parameter id one writes opens in every later release of its major; **and every
   released version stays installable**, for old tracks (the owner, 2026-10-25: "we dont releease
@@ -250,4 +253,5 @@ folder, and its docs must not send a contributor here.
 | `apps/mxm-vocal-coach/AGENTS.md` | MXM Vocal Coach: the lessons, the core, the sound, the coach in the app and through MCP |
 | `apps/mxm-tutti-converter/AGENTS.md` | MXM tutti Converter: watching folders and converting through tutti's formats; the plan is ops' `plans/plan-tutti-converter.md` |
 | `wsl/AGENTS.md` | The Linux distros, and how to run a repository's checks in them |
+| `vm/AGENTS.md` | The Windows test VM: building it, resetting it to its clean install, serving files to it |
 | `ops/AGENTS.md` | The split, publishing and move scripts |

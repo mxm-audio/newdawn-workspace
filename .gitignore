@@ -23,3 +23,8 @@ target/
 # Machine-local by-products: Python's bytecode cache (ws.py), and the crash dumps Git Bash tools write.
 __pycache__/
 *.stackdump
+
+# The Windows test VM's ISO and its state (disk, firmware variables, TPM): machine-local. Its
+# scripts are tracked.
+/vm/windows/*.iso
+/vm/windows/state/
