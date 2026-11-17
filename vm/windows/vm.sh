@@ -2,14 +2,18 @@
 # The Windows 11 test VM (vm/AGENTS.md): Microsoft's 90-day evaluation under QEMU and KVM, built by
 # this script so a new one is one command when the evaluation runs out.
 #
-#   vm.sh build [--again]   a fresh VM from the one .iso here, unattended (about half an hour); it
+#   vm.sh build [--again]   a fresh VM from the one .iso here, unattended (about ten minutes); it
 #                           ends with the snapshot "clean". --again replaces the VM there is.
 #   vm.sh run               starts the VM; what is done in it stays until `reset`.
 #   vm.sh reset             back to the clean install: its disk, firmware variables and TPM.
 #   vm.sh serve <folder>    serves a folder to the VM, at http://10.0.2.2:8000/ inside it.
+#   vm.sh ssh [command]     a PowerShell in the running VM, or one command there (as `mxm`).
+#   vm.sh copy <path>... <dest>   copies files or folders into the VM (dest a Windows path).
+#   vm.sh desktop <command> starts a program on the VM's desktop (SSH's own commands have none).
 #
 # The window opens on Hyprland's workspace 4, silently. MXM_VM_HEADLESS=1 runs it with no window;
-# MXM_VM_MEMORY (8G) and MXM_VM_CPUS (8) size it.
+# MXM_VM_MEMORY (8G) and MXM_VM_CPUS (8) size it. SSH reaches the VM at this machine's
+# 127.0.0.1:2222 alone, with the VM's own key in state/ssh/, made by `build`.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,6 +27,11 @@ SOCK="$STATE/swtpm.sock"
 MONITOR="$STATE/monitor.sock"
 PIDFILE="$STATE/qemu.pid"
 UNATTEND="$STATE/autounattend.iso"
+KEY="$STATE/ssh/id_ed25519"
+SSH_PORT=2222
+# Microsoft's OpenSSH for Windows, installed during setup from the answer-file disc.
+OPENSSH_URL=https://github.com/PowerShell/Win32-OpenSSH/releases/download/10.0.0.0p2-Preview/OpenSSH-Win64-v10.0.0.0.msi
+OPENSSH_SHA256=ddec9c53864280759cf9f74791cefd387100e3946aa849a1c138a4ed1b96b7d9
 CODE=/usr/share/edk2/x64/OVMF_CODE.4m.fd
 VARS_TEMPLATE=/usr/share/edk2/x64/OVMF_VARS.4m.fd
 MEMORY="${MXM_VM_MEMORY:-8G}"
@@ -57,7 +66,7 @@ qemu_args() {
         -chardev "socket,id=chrtpm,path=$SOCK" -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0
         -drive "file=$DISK,if=none,id=disk,format=qcow2,discard=unmap" -device ide-hd,drive=disk,bus=ide.0,bootindex=1
         -device qemu-xhci -device usb-tablet
-        -nic user,model=e1000e
+        -nic "user,model=e1000e,hostfwd=tcp:127.0.0.1:$SSH_PORT-:22"
         -vga std
         -audiodev pipewire,id=snd -device ich9-intel-hda -device hda-output,audiodev=snd
         -monitor "unix:$MONITOR,server,nowait"
@@ -96,8 +105,13 @@ build() {
         die "there is a VM already; \`vm.sh build --again\` replaces it, \`vm.sh reset\` restores its clean install"
     fi
     rm -rf "$STATE"
-    mkdir -p "$STATE/unattend"
+    mkdir -p "$STATE/unattend" "$STATE/ssh"
     cp "$HERE/autounattend.xml" "$STATE/unattend/"
+    ssh-keygen -q -t ed25519 -N "" -C mxm-windows-vm -f "$KEY"
+    cp "$KEY.pub" "$STATE/unattend/administrators_authorized_keys"
+    curl -fsSL -o "$STATE/unattend/OpenSSH-Win64.msi" "$OPENSSH_URL"
+    echo "$OPENSSH_SHA256  $STATE/unattend/OpenSSH-Win64.msi" | sha256sum -c --quiet - ||
+        die "the OpenSSH installer isn't the one pinned here"
     xorriso -as mkisofs -quiet -V UNATTEND -J -r -o "$UNATTEND" "$STATE/unattend"
     cp "$VARS_TEMPLATE" "$VARS"
     qemu-img create -q -f qcow2 "$DISK" 64G
@@ -105,7 +119,7 @@ build() {
     qemu_args
     ARGS+=(-drive "file=$iso,media=cdrom,if=none,id=cd0,readonly=on" -device ide-cd,drive=cd0,bus=ide.1,bootindex=0
         -drive "file=$UNATTEND,media=cdrom,if=none,id=cd1,readonly=on" -device ide-cd,drive=cd1,bus=ide.2)
-    echo "installing Windows from $(basename "$iso"): about half an hour, unattended; it shuts down when done"
+    echo "installing Windows from $(basename "$iso"): about ten minutes, unattended; it shuts down when done"
     launch
     # The ISO asks "Press any key to boot from CD or DVD" once: answer it for the first seconds only,
     # so setup's own reboots go on from the disk. With `x`, not Enter: setup's window comes up within
@@ -140,6 +154,31 @@ reset() {
     echo "reset to the clean install"
 }
 
+ssh_options=(-i "$KEY" -p "$SSH_PORT" -o StrictHostKeyChecking=accept-new
+    -o "UserKnownHostsFile=$STATE/ssh/known_hosts" -o ConnectTimeout=10 -o LogLevel=ERROR)
+
+vm_ssh() {
+    running || die "the VM isn't running: \`vm.sh run\`"
+    exec ssh "${ssh_options[@]}" mxm@127.0.0.1 "$@"
+}
+
+vm_copy() {
+    running || die "the VM isn't running: \`vm.sh run\`"
+    (( $# >= 2 )) || die "copy needs what to copy and where, a Windows path"
+    local dest="${*: -1}"
+    scp -r -P "$SSH_PORT" -i "$KEY" -o StrictHostKeyChecking=accept-new \
+        -o "UserKnownHostsFile=$STATE/ssh/known_hosts" -o LogLevel=ERROR "${@:1:$#-1}" "mxm@127.0.0.1:$dest"
+}
+
+# A program SSH starts runs with no desktop; a scheduled task for the logged-on user runs on it.
+vm_desktop() {
+    running || die "the VM isn't running: \`vm.sh run\`"
+    (( $# >= 1 )) || die "desktop needs a command"
+    local command="$*"
+    ssh "${ssh_options[@]}" mxm@127.0.0.1 \
+        "schtasks /create /tn mxm-desktop /tr '$command' /sc once /st 00:00 /it /f | Out-Null; schtasks /run /tn mxm-desktop | Out-Null; 'started on the desktop: $command'"
+}
+
 serve() {
     local folder="${1:-}"
     [[ -d "$folder" ]] || die "serve needs a folder"
@@ -152,5 +191,8 @@ case "${1:-}" in
     run) run ;;
     reset) reset ;;
     serve) serve "${2:-}" ;;
-    *) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    ssh) shift; vm_ssh "$@" ;;
+    copy) shift; vm_copy "$@" ;;
+    desktop) shift; vm_desktop "$@" ;;
+    *) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 2 ;;
 esac

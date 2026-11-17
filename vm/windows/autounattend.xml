@@ -2,8 +2,9 @@
 <!--
   The Windows 11 test VM's unattended install (vm/AGENTS.md): wipes the VM's one disk, installs the
   evaluation's one edition, makes the local administrator `mxm` (password `mxm`: a throwaway VM with
-  no way in from outside), logs it on, and shuts down at its first logon so `vm.sh build` can take
-  the clean snapshot. English Windows, a Danish keyboard and Danish formats, Copenhagen's time.
+  no way in from outside but vm.sh's SSH, from this machine alone), installs OpenSSH with this VM's
+  key from the answer-file disc, logs `mxm` on, and shuts down at its first logon so `vm.sh build`
+  can take the clean snapshot. English Windows, a Danish keyboard and Danish formats, Copenhagen's time.
 -->
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
   <settings pass="windowsPE">
@@ -104,6 +105,36 @@
         <RunSynchronousCommand wcm:action="add">
           <Order>1</Order>
           <Path>reg add HKLM\SYSTEM\CurrentControlSet\Control\BitLocker /v PreventDeviceEncryption /t REG_DWORD /d 1 /f</Path>
+        </RunSynchronousCommand>
+        <!-- OpenSSH, from the answer-file disc, for vm.sh ssh: this VM's own key, the VM's port 22
+             forwarded to this machine's 127.0.0.1:2222 only. -->
+        <RunSynchronousCommand wcm:action="add">
+          <Order>2</Order>
+          <Path>cmd /c for %d in (D E F G H) do @if exist %d:\OpenSSH-Win64.msi msiexec /i %d:\OpenSSH-Win64.msi /qn /norestart</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>3</Order>
+          <Path>cmd /c sc config sshd start= auto</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>4</Order>
+          <Path>reg add HKLM\SOFTWARE\OpenSSH /v DefaultShell /t REG_SZ /d C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe /f</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>5</Order>
+          <Path>cmd /c if not exist C:\ProgramData\ssh mkdir C:\ProgramData\ssh</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>6</Order>
+          <Path>cmd /c for %d in (D E F G H) do @if exist %d:\administrators_authorized_keys copy /y %d:\administrators_authorized_keys C:\ProgramData\ssh\administrators_authorized_keys</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>7</Order>
+          <Path>icacls C:\ProgramData\ssh\administrators_authorized_keys /inheritance:r /grant Administrators:F /grant SYSTEM:F</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>8</Order>
+          <Path>netsh advfirewall firewall add rule name=MXM-sshd dir=in action=allow protocol=TCP localport=22</Path>
         </RunSynchronousCommand>
       </RunSynchronous>
     </component>
