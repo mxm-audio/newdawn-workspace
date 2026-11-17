@@ -33,6 +33,8 @@ this); `ws` is how the workspace does the same step everywhere at once.
                                              as the MXM portal installs them: bundled, signed when the
                                              signing settings are set, one archive each and a
                                              manifest, in target-shared/release/<platform>/
+                                             (--windows, on Linux: Windows' release,
+                                             cross-compiled with cargo-xwin)
 
 `update` and `install` fetch first and refuse a repository whose checkout is behind its upstream.
 
@@ -1141,7 +1143,8 @@ def sign_plugin(clap, vst3):
     """Signs a plugin's two bundles when this platform's signing settings are set: Windows through
     Microsoft's Artifact Signing (`ARTIFACT_SIGNING_DLIB`, `ARTIFACT_SIGNING_METADATA`), macOS with
     a Developer ID (`MACOS_SIGNING_IDENTITY`), ad hoc otherwise, which Apple silicon needs at least.
-    Linux has no such check. Returns how it was signed."""
+    Returns how it was signed; on Linux, which has no such check, nothing, and nothing is said of it
+    (the owner, 2026-11-17: "On linux signing it should just say nothing")."""
     if sys.platform.startswith("win"):
         dlib, metadata = os.environ.get("ARTIFACT_SIGNING_DLIB"), os.environ.get("ARTIFACT_SIGNING_METADATA")
         if not (dlib and metadata):
@@ -1164,16 +1167,17 @@ def sign_plugin(clap, vst3):
             if bundle.exists():
                 subprocess.run([*sign, str(bundle)], check=True)
         return "Developer ID" if identity else "ad hoc"
-    return "unsigned (Linux has no check)"
+    return None
 
 
 def pack(staging, archive):
-    """One archive of a staging folder's contents: `ditto` on macOS, so bundles keep their signatures
-    and modes; a tarball on Linux, for the modes; a zip on Windows."""
+    """One archive of a staging folder's contents, by the archive's name: `ditto` on macOS, so bundles
+    keep their signatures and modes; a tarball (`.tar.gz`) for Linux, for the modes; a zip for
+    Windows."""
     remove(archive)
     if sys.platform == "darwin":
         subprocess.run(["ditto", "-c", "-k", "--keepParent", str(staging), str(archive)], check=True)
-    elif sys.platform.startswith("linux"):
+    elif archive.name.endswith(".tar.gz"):
         import tarfile
         with tarfile.open(archive, "w:gz") as tarball:
             tarball.add(staging, arcname=staging.name)
@@ -1184,7 +1188,7 @@ def pack(staging, archive):
                 zipped.write(file, Path(staging.name) / file.relative_to(staging))
 
 
-def pack_plugin(bundle, bundled, staged, out, stem, sign=sign_plugin):
+def pack_plugin(bundle, bundled, staged, out, stem, sign=sign_plugin, for_windows=False):
     """One plugin's release archive in `out`, `<stem>.zip` (`.tar.gz` on Linux): what its build made
     (`outputs`), side by side: the bundles, signed by `sign`, the control map and the presets
     folder, which the portal installs as `install` does, the presets in their folder for the
@@ -1198,10 +1202,32 @@ def pack_plugin(bundle, bundled, staged, out, stem, sign=sign_plugin):
         elif part.exists():
             shutil.copy2(part, staging / part.name)
     signed = sign(staging / f"{bundle}.clap", staging / f"{bundle}.vst3")
-    archive = out / (f"{stem}.tar.gz" if sys.platform.startswith("linux") else f"{stem}.zip")
+    archive = out / (f"{stem}.tar.gz" if sys.platform.startswith("linux") and not for_windows else f"{stem}.zip")
     pack(staging, archive)
     remove(staging)
     return archive, signed
+
+
+WINDOWS_TARGET = "x86_64-pc-windows-msvc"
+
+
+def windows_cross_env():
+    """The environment that builds for Windows on Linux (vm/AGENTS.md): cargo-xwin's compilers and
+    linker, Microsoft's runtime and SDK files accepted (the owner, 2026-11-17), its empty `RUSTFLAGS`
+    taken out, or Cargo ignores every flag set for the Windows target."""
+    found = subprocess.run(["cargo", "xwin", "--version"], capture_output=True).returncode == 0
+    if not found:
+        raise SystemExit("refused: --windows needs cargo-xwin: `cargo install --locked cargo-xwin` and "
+                         f"`rustup target add {WINDOWS_TARGET}`")
+    shown = subprocess.run(["cargo", "xwin", "env", "--target", WINDOWS_TARGET], capture_output=True,
+                           text=True, check=True, env={**os.environ, "XWIN_ACCEPT_LICENSE": "1"}).stdout
+    env = {}
+    for line in shown.splitlines():
+        match = re.match(r'export ([A-Za-z_][A-Za-z0-9_]*)="(.*)";?$', line.strip())
+        if match:
+            env[match.group(1)] = match.group(2)
+    env.pop("RUSTFLAGS", None)
+    return env
 
 
 def cmd_release(args):
@@ -1210,16 +1236,21 @@ def cmd_release(args):
     set, packed as one archive, and listed in `manifest.json` with its id, version, commit, size and
     SHA-256, the facts the portal's signed index is made from (ops' `plans/plan-sales-portal.md` §5).
     Into `target-shared/release/<platform>/`. Refuses a repository behind its upstream or with
-    uncommitted changes, so an archive is always a commit; `--allow-dirty` builds anyway, marked."""
+    uncommitted changes, so an archive is always a commit; `--allow-dirty` builds anyway, marked.
+    `--windows`, on Linux, makes Windows' release instead, cross-compiled with cargo-xwin (the
+    beta's, 2026-11-17: Windows is booted only to test); it isn't signed, and says nothing of it."""
     allow_dirty = "--allow-dirty" in args
+    for_windows = "--windows" in args and not sys.platform.startswith("win")
+    args = [a for a in args if a != "--windows"]
     products = {n: v for n, v in selected(args).items() if v[0] in ("instruments", "effects", "player")}
     if linked():
         raise SystemExit(f"refused: linked builds aren't releases ({CONFIG}); `python ws.py unlink` first")
-    plat = release_platform()
+    plat = "windows-x64" if for_windows else release_platform()
     out = ROOT / "target-shared" / "release" / plat
     out.mkdir(parents=True, exist_ok=True)
-    target = build_dir(ROOT / "target-shared")
-    env = {**cargo_env(), "CARGO_TARGET_DIR": str(target), "MXM_INSTALL_CLAP": "0"}
+    target = build_dir(ROOT / ("target-shared-windows" if for_windows else "target-shared"))
+    cross = windows_cross_env() if for_windows else {}
+    env = {**cargo_env(), **cross, "CARGO_TARGET_DIR": str(target), "MXM_INSTALL_CLAP": "0"}
     refused = refuse_behind(products)
     entries, results = [], []
     for name, (group, path) in products.items():
@@ -1233,8 +1264,10 @@ def cmd_release(args):
         commit = git(path, "rev-parse", "HEAD")
         if group == "player":
             print(f"\n=== {name}", flush=True)
-            code = subprocess.run([sys.executable, "packaging/package.py", "--out", str(out)], cwd=path,
-                                  env={**cargo_env(), "CARGO_TARGET_DIR": str(build_dir(path / "target"))}).returncode
+            code = subprocess.run([sys.executable, "packaging/package.py", "--out", str(out)]
+                                  + (["--windows"] if for_windows else []), cwd=path,
+                                  env={**cargo_env(), **cross,
+                                       "CARGO_TARGET_DIR": str(build_dir(path / "target"))}).returncode
             version = package_versions(path).get("mxm-player", "?")
             made = sorted(out.glob(f"mxm-player-{version}-{plat}.*"))
             if code or not made:
@@ -1263,20 +1296,26 @@ def cmd_release(args):
             verb = "bundle-universal" if sys.platform == "darwin" else "bundle"
             command = [cargo_program(), "run", "--package", "xtask", "--release",
                        "--target-dir", str(build_dir(path / "target")), "--", verb, package, "--release"]
+            if for_windows:
+                command += ["--target", WINDOWS_TARGET]
             print(f"$ {' '.join(command)}", flush=True)
             code = subprocess.run(command, cwd=path, env=env).returncode
             if code or not built.exists():
                 results.append((bundle, "NOT RELEASED: the build failed"))
                 continue
             version = versions.get(package, "?")
-            archive, signed = pack_plugin(bundle, bundled, staged, out, f"{bundle}-{version}-{plat}")
+            archive, signed = pack_plugin(
+                bundle, bundled, staged, out, f"{bundle}-{version}-{plat}",
+                sign=(lambda clap, vst3: None) if for_windows else sign_plugin,
+                for_windows=for_windows)
             formats = ["clap"] + (["vst3"] if built_vst3.exists() else [])
             entries.append({"id": f"dk.mxm.{bundle}", "name": bundle, "kind": "plugin",
                             "formats": formats, "repository": name, "commit": commit,
                             "dirty": bool(dirty), "version": version, "file": archive.name,
                             "size": archive.stat().st_size, "sha256": sha256_of(archive),
-                            "signed": signed})
-            results.append((bundle, f"released {archive.name} ({', '.join(formats)}; {signed})"))
+                            **({"signed": signed} if signed else {})})
+            how = f"; {signed}" if signed else ""
+            results.append((bundle, f"released {archive.name} ({', '.join(formats)}{how})"))
     manifest = out / "manifest.json"
     known = {}
     if manifest.exists():
