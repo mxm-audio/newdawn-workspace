@@ -10,7 +10,7 @@ owner: "cant we just just the 90 day trial, and then reinstall it every 90 days?
 
 ## Ownership
 
-- `windows/vm.sh` (`build`, `run`, `reset`, `serve`, `ssh`, `copy`, `desktop`) and
+- `windows/vm.sh` (`build`, `run`, `stop`, `reset`, `serve`, `ssh`, `copy`, `desktop`) and
   `windows/autounattend.xml`, the unattended install, are tracked.
 - `windows/*.iso`, the evaluation ISO the owner downloads from Microsoft's Evaluation Center (the
   Enterprise ISO, not LTSC), and `windows/state/`, the disk, firmware variables, TPM and sockets,

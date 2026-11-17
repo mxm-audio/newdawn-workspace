@@ -5,7 +5,9 @@
 #   vm.sh build [--again]   a fresh VM from the one .iso here, unattended (about ten minutes); it
 #                           ends with the snapshot "clean". --again replaces the VM there is.
 #   vm.sh run               starts the VM; what is done in it stays until `reset`.
-#   vm.sh reset             back to the clean install: its disk, firmware variables and TPM.
+#   vm.sh stop              shuts Windows down, keeping what was done in it.
+#   vm.sh reset             back to the clean install: its disk, firmware variables and TPM. A
+#                           running VM is switched off first: nothing in it is kept anyway.
 #   vm.sh serve <folder>    serves a folder to the VM, at http://10.0.2.2:8000/ inside it.
 #   vm.sh ssh [command]     a PowerShell in the running VM, or one command there (as `mxm`).
 #   vm.sh copy <path>... <dest>   copies files or folders into the VM (dest a Windows path).
@@ -144,9 +146,21 @@ run() {
     echo "the VM runs (QEMU's window on workspace 4); shut Windows down to stop it"
 }
 
+stop() {
+    running || { echo "the VM isn't running"; return; }
+    monitor "system_powerdown"
+    wait_for_exit
+    echo "stopped"
+}
+
 reset() {
     [[ -e "$DISK" ]] || die "no VM yet: \`vm.sh build\`"
-    running && die "the VM is running; shut it down first"
+    # Switched off, not shut down: a shutdown can stop to install updates (2026-11-17), and nothing
+    # in the VM is kept.
+    if running; then
+        monitor "quit"
+        wait_for_exit
+    fi
     qemu-img snapshot -a clean "$DISK"
     cp "$CLEAN_VARS" "$VARS"
     rm -rf "$TPM"
@@ -189,6 +203,7 @@ serve() {
 case "${1:-}" in
     build) build "${2:-}" ;;
     run) run ;;
+    stop) stop ;;
     reset) reset ;;
     serve) serve "${2:-}" ;;
     ssh) shift; vm_ssh "$@" ;;

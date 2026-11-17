@@ -106,6 +106,12 @@
           <Order>1</Order>
           <Path>reg add HKLM\SYSTEM\CurrentControlSet\Control\BitLocker /v PreventDeviceEncryption /t REG_DWORD /d 1 /f</Path>
         </RunSynchronousCommand>
+        <!-- No automatic updates: a test machine stays as its clean snapshot left it, and a shutdown
+             doesn't stop to install what it downloaded meanwhile (2026-11-17). -->
+        <RunSynchronousCommand wcm:action="add">
+          <Order>9</Order>
+          <Path>reg add HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v NoAutoUpdate /t REG_DWORD /d 1 /f</Path>
+        </RunSynchronousCommand>
         <!-- OpenSSH, from the answer-file disc, for vm.sh ssh: this VM's own key, the VM's port 22
              forwarded to this machine's 127.0.0.1:2222 only. -->
         <RunSynchronousCommand wcm:action="add">

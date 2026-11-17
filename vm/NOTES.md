@@ -90,3 +90,14 @@ are in `AGENTS.md`; this is why they are so.
   folders. A plugin's editor draws with OpenGL 3, which the VM's display likely lacks, so editors
   are tested on real machines (unverified in the VM). `mxm-cli` found no running player there (no
   `cli.json` beside its settings): not looked into yet.
+- **The beta, end to end, 2026-11-17**, from the clean snapshot: `mxm-portal.exe` downloaded from
+  https://portal.mxm.dk/download/, `setup` (the user's part, then the machine's: the MXM folders,
+  writable by Users, and Microsoft's runtime 14.52), the beta key activated, `install all`: 25
+  products in 6 seconds over the LAN; index 2 (mxm-drum-machine added) picked up by `install all`
+  again. A plugin loaded from the MXM folder; MXM Player, installed by the portal, scanned all 50
+  bundles inside the MXM subfolders (its first start about 40 seconds, in software). The UAC prompt
+  of a double-click was not seen: an SSH session runs elevated already.
+- **Updates at shutdown**: an hour after a reset Windows Update had downloaded updates, and a
+  shutdown stopped to install them ("updates are under way"). `vm.sh reset` now switches the VM off
+  instead (nothing in it is kept), `vm.sh stop` shuts it down properly, and the answer file turns
+  automatic updates off (`NoAutoUpdate`), from the next `build`.
