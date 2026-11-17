@@ -83,3 +83,10 @@ are in `AGENTS.md`; this is why they are so.
   portal's installer installs Microsoft's runtime when it's missing, and only the portal is built
   static (ops' `plans/plan-sales-portal.md` §5). So a plugin tested in the VM needs the runtime
   installed there first, except when the test is the portal's own install on a clean machine.
+- **The first test, 2026-11-17**: Microsoft's runtime installed in the VM from
+  `https://aka.ms/vc14/vc_redist.x64.exe` (`/install /quiet /norestart`, 14.52); MXM Player built on
+  Linux started on the desktop (`vm.sh desktop`), its window up after about ten seconds, drawn in
+  software (the VM has no 3D graphics); its scan opened mxm-fx-delay's CLAP and VST3 from the system
+  folders. A plugin's editor draws with OpenGL 3, which the VM's display likely lacks, so editors
+  are tested on real machines (unverified in the VM). `mxm-cli` found no running player there (no
+  `cli.json` beside its settings): not looked into yet.
