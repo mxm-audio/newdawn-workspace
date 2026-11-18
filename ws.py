@@ -34,7 +34,9 @@ this); `ws` is how the workspace does the same step everywhere at once.
                                              signing settings are set, one archive each and a
                                              manifest, in target-shared/release/<platform>/
                                              (--windows, on Linux: Windows' release,
-                                             cross-compiled with cargo-xwin)
+                                             cross-compiled with cargo-xwin). Linux's own is
+                                             linked against glibc 2.31 with zig, so it runs on
+                                             Debian 11, Ubuntu 20.04 and later
 
 `update` and `install` fetch first and refuse a repository whose checkout is behind its upstream.
 
@@ -1188,8 +1190,9 @@ def pack(staging, archive):
                 zipped.write(file, Path(staging.name) / file.relative_to(staging))
 
 
-def pack_plugin(bundle, bundled, staged, out, stem, sign=sign_plugin, for_windows=False):
-    """One plugin's release archive in `out`, `<stem>.zip` (`.tar.gz` on Linux): what its build made
+def pack_plugin(bundle, bundled, staged, out, stem, sign=sign_plugin):
+    """One plugin's release archive in `out`, `<stem>.zip` on every platform, the modes kept, so the
+    portal's index cuts each into its formats' parts (mxm-portal's `crates/index`): what its build made
     (`outputs`), side by side: the bundles, signed by `sign`, the control map and the presets
     folder, which the portal installs as `install` does, the presets in their folder for the
     manifest's id and version. Returns the archive and how it was signed."""
@@ -1202,7 +1205,7 @@ def pack_plugin(bundle, bundled, staged, out, stem, sign=sign_plugin, for_window
         elif part.exists():
             shutil.copy2(part, staging / part.name)
     signed = sign(staging / f"{bundle}.clap", staging / f"{bundle}.vst3")
-    archive = out / (f"{stem}.tar.gz" if sys.platform.startswith("linux") and not for_windows else f"{stem}.zip")
+    archive = out / f"{stem}.zip"
     pack(staging, archive)
     remove(staging)
     return archive, signed
@@ -1230,6 +1233,79 @@ def windows_cross_env():
     return env
 
 
+LINUX_TARGET = "x86_64-unknown-linux-gnu"
+# The oldest glibc Linux's release runs on: Debian 11, Ubuntu 20.04 and every later one (the owner,
+# 2026-11-18, asked for the Linux release; linked against this machine's glibc, 2.44, every plugin
+# needed 2.43 and loaded on no Ubuntu LTS).
+LINUX_GLIBC = "2.31"
+
+
+def linux_zig_env(folder):
+    """The environment that links Linux's release against glibc `LINUX_GLIBC`: zig as the C compiler
+    and the linker, through cargo-zigbuild's wrappers, written into `folder/zig`. The linker lets a
+    system library (MXM Player's ALSA) keep its own glibc needs, which the user's system meets: only
+    our own code is held to `LINUX_GLIBC`, and `newest_glibc` checks it."""
+    def version_of(zig):
+        try:
+            return subprocess.run([zig, "version"], capture_output=True, text=True).stdout.strip()
+        except OSError:
+            return ""
+
+    # MXM_ZIG, or mise's zig (its shim on the PATH runs only where zig is activated), or the PATH's.
+    candidates = [os.environ.get("MXM_ZIG")]
+    if shutil.which("mise"):
+        where = subprocess.run(["mise", "where", "zig"], capture_output=True, text=True).stdout.strip()
+        candidates.append(where and str(Path(where) / "zig"))
+    candidates.append(shutil.which("zig"))
+    zig, version = next(((z, v) for z in candidates if z for v in [version_of(z)] if v), (None, ""))
+    zigbuild = shutil.which("cargo-zigbuild") or str(Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
+                                                       / "bin" / "cargo-zigbuild")
+    if not zig or not Path(zigbuild).exists():
+        raise SystemExit("refused: Linux's release needs zig and cargo-zigbuild: `mise install zig@0.15.2` "
+                         "(or zig on the PATH, or MXM_ZIG) and `cargo install --locked cargo-zigbuild`")
+    wrappers = folder / "zig"
+    wrappers.mkdir(parents=True, exist_ok=True)
+    head = (f"#!/bin/sh\nexport CARGO_ZIGBUILD_ZIG_VERSION={version}\n"
+            f"export CARGO_ZIGBUILD_ZIG_COMMAND='{zig}'\nexec '{zigbuild}' zig ")
+    target = f"-target {LINUX_TARGET.replace('-unknown', '')}.{LINUX_GLIBC}"
+    made = {}
+    for name, line in {"cc": f'cc -- -g -fno-sanitize=all {target} "$@"',
+                       "c++": f'c++ -- -g -fno-sanitize=all {target} "$@"',
+                       "ld": f'cc -- -g -fno-sanitize=all {target} -Wl,--allow-shlib-undefined "$@"',
+                       "ar": 'ar -- "$@"'}.items():
+        path = wrappers / f"zig{name.replace('+', 'x')}.sh"
+        write(path, head + line + "\n")
+        path.chmod(0o755)
+        made[name] = str(path)
+    triple = LINUX_TARGET.replace("-", "_")
+    return {f"CARGO_TARGET_{triple.upper()}_LINKER": made["ld"], f"CC_{triple}": made["cc"],
+            f"CXX_{triple}": made["c++"], f"AR_{triple}": made["ar"]}
+
+
+def newest_glibc(paths):
+    """The newest glibc version any ELF file below `paths` needs, as a tuple; () for none."""
+    newest = ()
+    for path in paths:
+        files = [path] if path.is_file() else [f for f in path.rglob("*") if f.is_file()]
+        for file in files:
+            with open(file, "rb") as opened:
+                if opened.read(4) != b"\x7fELF":
+                    continue
+            shown = subprocess.run(["objdump", "-T", str(file)], capture_output=True, text=True).stdout
+            for found in re.findall(r"GLIBC_([0-9.]+)", shown):
+                newest = max(newest, tuple(int(n) for n in found.split(".")))
+    return newest
+
+
+def too_new_for_linux(paths):
+    """Why a Linux build can't be released, if it needs a glibc newer than `LINUX_GLIBC`."""
+    newest = newest_glibc(paths)
+    floor = tuple(int(n) for n in LINUX_GLIBC.split("."))
+    if newest > floor:
+        return f"it needs glibc {'.'.join(map(str, newest))}, newer than {LINUX_GLIBC}"
+    return None
+
+
 def cmd_release(args):
     """Builds this platform's release of every plugin, and of MXM Player, as the MXM portal installs
     them: each product bundled in release (universal on macOS), signed when the signing settings are
@@ -1238,9 +1314,12 @@ def cmd_release(args):
     Into `target-shared/release/<platform>/`. Refuses a repository behind its upstream or with
     uncommitted changes, so an archive is always a commit; `--allow-dirty` builds anyway, marked.
     `--windows`, on Linux, makes Windows' release instead, cross-compiled with cargo-xwin (the
-    beta's, 2026-11-17: Windows is booted only to test); it isn't signed, and says nothing of it."""
+    beta's, 2026-11-17: Windows is booted only to test); it isn't signed, and says nothing of it.
+    Linux's own is linked against glibc `LINUX_GLIBC` with zig (`linux_zig_env`), and a build that
+    needs a newer one isn't released."""
     allow_dirty = "--allow-dirty" in args
     for_windows = "--windows" in args and not sys.platform.startswith("win")
+    for_linux = sys.platform.startswith("linux") and not for_windows
     args = [a for a in args if a != "--windows"]
     products = {n: v for n, v in selected(args).items() if v[0] in ("instruments", "effects", "player")}
     if linked():
@@ -1248,8 +1327,9 @@ def cmd_release(args):
     plat = "windows-x64" if for_windows else release_platform()
     out = ROOT / "target-shared" / "release" / plat
     out.mkdir(parents=True, exist_ok=True)
-    target = build_dir(ROOT / ("target-shared-windows" if for_windows else "target-shared"))
-    cross = windows_cross_env() if for_windows else {}
+    target = build_dir(ROOT / ("target-shared-windows" if for_windows
+                               else "target-shared-linux" if for_linux else "target-shared"))
+    cross = windows_cross_env() if for_windows else linux_zig_env(target) if for_linux else {}
     env = {**cargo_env(), **cross, "CARGO_TARGET_DIR": str(target), "MXM_INSTALL_CLAP": "0"}
     refused = refuse_behind(products)
     entries, results = [], []
@@ -1264,14 +1344,22 @@ def cmd_release(args):
         commit = git(path, "rev-parse", "HEAD")
         if group == "player":
             print(f"\n=== {name}", flush=True)
+            # Linux's release links differently, so it has a build folder of its own.
+            player_target = build_dir(path / ("target-release-linux" if for_linux else "target"))
             code = subprocess.run([sys.executable, "packaging/package.py", "--out", str(out)]
                                   + (["--windows"] if for_windows else []), cwd=path,
                                   env={**cargo_env(), **cross,
-                                       "CARGO_TARGET_DIR": str(build_dir(path / "target"))}).returncode
+                                       "CARGO_TARGET_DIR": str(player_target)}).returncode
             version = package_versions(path).get("mxm-player", "?")
             made = sorted(out.glob(f"mxm-player-{version}-{plat}.*"))
             if code or not made:
                 results.append((name, "NOT RELEASED: its packaging failed"))
+                continue
+            too_new = for_linux and too_new_for_linux([player_target / "release" / p
+                                                       for p in ("mxm-player", "mxm-cli")])
+            if too_new:
+                remove(made[0])
+                results.append((name, f"NOT RELEASED: {too_new}"))
                 continue
             entries.append({"id": "dk.mxm.mxm-player", "name": "mxm-player", "kind": "app",
                             "repository": name, "commit": commit, "dirty": bool(dirty),
@@ -1294,20 +1382,34 @@ def cmd_release(args):
                 continue
             # As `install` runs the xtask: its own target folder, the plugin in the shared one.
             verb = "bundle-universal" if sys.platform == "darwin" else "bundle"
+            xtask_target = build_dir(path / "target")
             command = [cargo_program(), "run", "--package", "xtask", "--release",
-                       "--target-dir", str(build_dir(path / "target")), "--", verb, package, "--release"]
+                       "--target-dir", str(xtask_target), "--", verb, package, "--release"]
             if for_windows:
                 command += ["--target", WINDOWS_TARGET]
+            if for_linux:
+                # The xtask itself is this machine's program, linked as usual (it needs X11's
+                # libxcb, which zig doesn't find); only the plugin it builds goes through zig.
+                code = subprocess.run([cargo_program(), "build", "--package", "xtask", "--release",
+                                       "--target-dir", str(xtask_target)], cwd=path, env=cargo_env()).returncode
+                command = [str(xtask_target / "release" / "xtask"), verb, package, "--release",
+                           "--target", LINUX_TARGET]
+                if code:
+                    results.append((bundle, "NOT RELEASED: its xtask didn't build"))
+                    continue
             print(f"$ {' '.join(command)}", flush=True)
             code = subprocess.run(command, cwd=path, env=env).returncode
             if code or not built.exists():
                 results.append((bundle, "NOT RELEASED: the build failed"))
                 continue
+            too_new = for_linux and too_new_for_linux([built, built_vst3])
+            if too_new:
+                results.append((bundle, f"NOT RELEASED: {too_new}"))
+                continue
             version = versions.get(package, "?")
             archive, signed = pack_plugin(
                 bundle, bundled, staged, out, f"{bundle}-{version}-{plat}",
-                sign=(lambda clap, vst3: None) if for_windows else sign_plugin,
-                for_windows=for_windows)
+                sign=(lambda clap, vst3: None) if for_windows else sign_plugin)
             formats = ["clap"] + (["vst3"] if built_vst3.exists() else [])
             entries.append({"id": f"dk.mxm.{bundle}", "name": bundle, "kind": "plugin",
                             "formats": formats, "repository": name, "commit": commit,

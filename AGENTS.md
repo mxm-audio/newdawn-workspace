@@ -100,6 +100,8 @@ step that repeats across repositories, rather than a loop by hand:
 - `release`: this platform's release of every plugin and MXM Player, as the portal installs them,
   into `target-shared/release/<platform>/` with a `manifest.json` (id, version, commit, SHA-256);
   signed when the signing settings in `ws.py` are set. Refuses a dirty or behind repository.
+  `--windows` on Linux makes Windows'. **Linux's links against glibc 2.31 with zig** (`mise install
+  zig@0.15.2`, cargo-zigbuild), to run on Ubuntu 20.04 and later; a newer need isn't released.
 - `each <command>`: any command in every repository.
 - `link kit [player] [format] [<fork>…]` / `unlink`: build against the local mxm-kit, the player,
   the format (tutti), any other repository by its name (`mxm-creative-sampler`) and the forks named (`nice-plug`, `nice-plug-egui`, `egui-baseview`, `baseview`), instead of their main, for one change
