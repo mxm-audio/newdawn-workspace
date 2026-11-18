@@ -141,6 +141,13 @@ are in `AGENTS.md`; this is why they are so.
 - **A windowed program over SSH** (the portal is one): PowerShell doesn't wait for it, and the SSH
   session's end kills it before it is done; pipe it (`… | Out-String`) to wait and to see what it
   prints (2026-11-18).
+- **The portal updating itself, 2026-11-18**: tested without touching portal.mxm.dk. Test builds
+  0.1.7 and 0.1.8 (the version raised for the build alone, never committed) were signed into a copy
+  of the index in the scratchpad, served with `vm.sh serve`, and the installed 0.1.6 was started
+  from a `.cmd` that sets `MXM_PORTAL_SERVICE=http://10.0.2.2:8000/` (a restart inherits it). Each
+  start fetched the next version and offered Restart, already on the formats page, with no key.
+  The restarted one first found the one before still closing; the deletion is now retried. Reset
+  after, and the test index deleted: it was signed with the real key.
 - **Updates at shutdown**: an hour after a reset Windows Update had downloaded updates, and a
   shutdown stopped to install them ("updates are under way"). `vm.sh reset` now switches the VM off
   instead (nothing in it is kept), `vm.sh stop` shuts it down properly, and the answer file turns
