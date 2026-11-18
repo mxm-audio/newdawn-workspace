@@ -15,6 +15,13 @@ portal, the plugins and MXM Player on.
 
 - `windows/vm.sh` (`build`, `run`, `stop`, `reset`, `serve`, `ssh`, `copy`, `desktop`) and
   `windows/autounattend.xml`, the unattended install, are tracked.
+- `mac/mac.sh` and `mac/mxm-input.swift`: the owner's MacBook Air, the macOS build machine, driven
+  over SSH (`ssh mac`, its Bonjour name: its address changes): `screen`, `click`, `move`, `type`,
+  `key`, `front`, and `install`, which builds the input helper on the Mac. Screenshots need Screen
+  Recording and input needs Accessibility for `/usr/libexec/sshd-keygen-wrapper`, both granted by
+  the owner (2026-11-18). A screenshot holds the owner's whole screen: take one for a test, crop
+  what it needs, delete the rest. Coordinates are a screenshot's pixels (2880×1800; the helper
+  divides by the screen's scale).
 - `linux/vm.sh` (the same commands, and `screen`, `click`, `key` for its desktop); its user-data,
   the first boot's whole setup, is in the script. `linux/state/` is machine-local and git-ignored.
 - `windows/*.iso`, the evaluation ISO the owner downloads from Microsoft's Evaluation Center (the
