@@ -148,6 +148,16 @@ are in `AGENTS.md`; this is why they are so.
   start fetched the next version and offered Restart, already on the formats page, with no key.
   The restarted one first found the one before still closing; the deletion is now retried. Reset
   after, and the test index deleted: it was signed with the real key.
+- **The portal's lock, 2026-11-18** (mxm-portal 0.1.11, one portal at a time in its folder): from
+  the clean snapshot the download's *Set up* went through UAC while its window held the lock (the
+  elevated `setup-machine` never takes it): the `MXM` folders writable by Users, the runtime
+  14.52. The installed 0.1.11, started from a `.cmd` against a test index with a test 0.1.12
+  (the version raised for the build alone, packed by hand, the index deleted after), updated
+  itself, and Restart's new version waited for the old one's lock and opened; the command line
+  beside the window waited 10 s and said another portal is open. **A click from the click task
+  leaves the UAC prompt on the taskbar**, a flashing shield (the task's PowerShell takes the
+  foreground from the portal): click that button, then `sendkey alt-y`. SmartScreen's buttons
+  took clicks too, where its keys went to Explorer this time.
 - **Updates at shutdown**: an hour after a reset Windows Update had downloaded updates, and a
   shutdown stopped to install them ("updates are under way"). `vm.sh reset` now switches the VM off
   instead (nothing in it is kept), `vm.sh stop` shuts it down properly, and the answer file turns
