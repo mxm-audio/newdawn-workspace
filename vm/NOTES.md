@@ -152,3 +152,28 @@ are in `AGENTS.md`; this is why they are so.
   shutdown stopped to install them ("updates are under way"). `vm.sh reset` now switches the VM off
   instead (nothing in it is kept), `vm.sh stop` shuts it down properly, and the answer file turns
   automatic updates off (`NoAutoUpdate`), from the next `build`.
+
+## The Linux VM (2026-11-18)
+
+- **The owner**: *"add the OpenGL fallback and build the Linux VM. It would be good if the portal
+  mentions what is missing from running the plugins"*.
+- **Ubuntu's cloud image, not the desktop ISO**: a scripted download (no form, unlike Windows'
+  evaluation), checked against `SHA256SUMS`, and cloud-init does the rest on the first boot. Its
+  address is `cloud-images.ubuntu.com/<codename>/current/`; the `releases/` folder names its images
+  by version number, and the first build took a 404 there.
+- **No Firefox**: `ubuntu-desktop-minimal` brings Firefox as a package that installs its snap, and
+  the snap store didn't answer from inside the VM; the install sat in its 50 minutes of retries. An
+  apt pin keeps it out; files reach the VM over SSH anyway. Without it the build took about
+  twenty minutes.
+- **The screen follows QEMU's window**: GNOME takes the size of the window it is shown in (2536×1363
+  on workspace 4, not the 1280×800 asked for), so `click` reads the screen's size from a screendump
+  each time.
+- **The Software Updater still asks** with automatic updates off: its autostart entry goes too,
+  from the next build.
+- **The first test**: the portal (0.1.8) from its tarball set itself up and drew on GNOME; with
+  every Vulkan driver's manifest moved away it drew with OpenGL (Mesa's software one) and its notice
+  named Vulkan as missing for MXM Player, with the apt command; a stock install lacks nothing on its
+  list. `install all` from portal.mxm.dk took 9 seconds; all 25 CLAPs loaded; MXM Player drew on
+  Mesa's software Vulkan, loaded MXM Mono 01 and MXM FX Delay, and both editors drew (X11 through
+  XWayland, Mesa's software OpenGL). `mxm-cli` found no player on its first start: the settings'
+  folder wasn't there yet for its port file (mxm-player's fix, 2026-11-18), as in the Windows VM.

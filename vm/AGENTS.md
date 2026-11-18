@@ -6,12 +6,17 @@ Virtual machines on this Linux machine, so Windows is tested without booting it 
 2026-11-17: "Can you compile the windows part inside a VM so I donw need to start a windows machin
 or reboot?"). `windows/` is Windows 11 Enterprise, Microsoft's 90-day evaluation, under QEMU and
 KVM: built by `windows/vm.sh` in one command, and built again when the evaluation runs out (the
-owner: "cant we just just the 90 day trial, and then reinstall it every 90 days?").
+owner: "cant we just just the 90 day trial, and then reinstall it every 90 days?"). `linux/` is
+Ubuntu 24.04 LTS with the minimal GNOME desktop (the owner, 2026-11-18: "build the Linux VM"), built
+by `linux/vm.sh` from Ubuntu's cloud image: a tester's Linux, with no graphics card, to test the
+portal, the plugins and MXM Player on.
 
 ## Ownership
 
 - `windows/vm.sh` (`build`, `run`, `stop`, `reset`, `serve`, `ssh`, `copy`, `desktop`) and
   `windows/autounattend.xml`, the unattended install, are tracked.
+- `linux/vm.sh` (the same commands, and `screen`, `click`, `key` for its desktop); its user-data,
+  the first boot's whole setup, is in the script. `linux/state/` is machine-local and git-ignored.
 - `windows/*.iso`, the evaluation ISO the owner downloads from Microsoft's Evaluation Center (the
   Enterprise ISO, not LTSC), and `windows/state/`, the disk, firmware variables, TPM and sockets,
   are machine-local and git-ignored.
@@ -35,6 +40,14 @@ owner: "cant we just just the 90 day trial, and then reinstall it every 90 days?
   Commands run in PowerShell. A program SSH starts has no desktop: `vm.sh desktop` starts one on
   the logged-on user's desktop through a scheduled task.
 
+- **The Linux VM** (`linux/`): Ubuntu's own cloud image, checked against its `SHA256SUMS`, with
+  `ubuntu-desktop-minimal` installed by cloud-init on its first boot (the same set the installer's
+  "minimal installation" gives a tester), the generic kernel for the sound card, GNOME logged on
+  by itself as `mxm` (password `mxm`), no automatic updates, no screen lock, no first-login wizard,
+  and cloud-init switched off after; then the snapshot `clean`. SSH at 127.0.0.1:2223 alone, with
+  its own key. Its display has no 3D: OpenGL is Mesa's software one, which is what a tester's VM or
+  an older computer has. `MXM_VM_UBUNTU=jammy` builds 22.04 instead.
+
 ## Work Guidance
 
 - `vm/windows/vm.sh build` (about ten minutes, unattended; it shuts down and takes the snapshot);
@@ -55,6 +68,10 @@ owner: "cant we just just the 90 day trial, and then reinstall it every 90 days?
   `Zone.Identifier`), opened through `explorer.exe` with `vm.sh desktop`, never over SSH, which runs
   elevated and skips SmartScreen and UAC. The dialogs are answered with the monitor's `sendkey`
   (`NOTES.md`, *Driving the VM's desktop by keys*).
+- **The Linux VM's desktop**: `vm.sh desktop <command>` starts a program in GNOME's session (through
+  the user's systemd, which has its environment); `vm.sh screen <file.png>` takes the screen;
+  `vm.sh click <x> <y>` clicks there through QEMU's tablet (QMP's input events, scaled from the
+  1280×800 screen), and `vm.sh key <keys>` types (`sendkey` names).
 - Check a DLL loads: copy in a `.ps1` that calls `LoadLibrary` and run it with `vm.sh ssh`; error 126
   is a missing DLL. `llvm-objdump -p <file> | grep "DLL Name"` lists what a build imports.
 

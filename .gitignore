@@ -28,3 +28,4 @@ __pycache__/
 # scripts are tracked.
 /vm/windows/*.iso
 /vm/windows/state/
+/vm/linux/state/

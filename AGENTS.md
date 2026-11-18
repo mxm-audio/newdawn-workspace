@@ -48,7 +48,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `ws.py`, `ws.cmd` | The workspace tool: one step in every repository at once (below) | this workspace |
 | `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
-| `vm/` | The Windows 11 test VM on Linux (QEMU and KVM, Microsoft's 90-day evaluation), built by one script | this workspace |
+| `vm/` | The test VMs on Linux (QEMU and KVM), each built by one script: Windows 11 (Microsoft's 90-day evaluation) and Ubuntu 24.04 with GNOME (2026-11-18) | this workspace |
 | `collection-tests/` | Tests across every product, waiting for this workspace's test package | this workspace |
 | `research/` | The research behind the products: the documents read, the recordings the models are fitted to, and what may cross into a public repository; cited as `research:<path>`, never a build dependency. Copyrighted material in it is saved locally only, never committed (the owner, 2026-10-13: "The rule is that copyrighted research material is only saved locally"). Out of `archive/` since 2026-10-13 | `maxmcorp/mxm-collection-research`, private |
 | `archive/` | The monorepo (archived on GitHub 2026-10-07; its worktrees' work is on `archive/*` branches); read-only | private |
@@ -256,5 +256,5 @@ folder, and its docs must not send a contributor here.
 | `apps/mxm-vocal-coach/AGENTS.md` | MXM Vocal Coach: the lessons, the core, the sound, the coach in the app and through MCP |
 | `apps/mxm-tutti-converter/AGENTS.md` | MXM tutti Converter: watching folders and converting through tutti's formats; the plan is ops' `plans/plan-tutti-converter.md` |
 | `wsl/AGENTS.md` | The Linux distros, and how to run a repository's checks in them |
-| `vm/AGENTS.md` | The Windows test VM: building it, resetting it to its clean install, serving files to it |
+| `vm/AGENTS.md` | The Windows and Linux test VMs: building them, resetting them to their clean install, serving files to them, driving their desktops |
 | `ops/AGENTS.md` | The split, publishing and move scripts |
