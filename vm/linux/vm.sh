@@ -17,8 +17,8 @@
 #   vm.sh click <x> <y>     a click at the screen's coordinates, as `screen` shows them.
 #   vm.sh key <keys>        keys, as QEMU's `sendkey` names them (`ret`, `ctrl-c`).
 #
-# The window opens on Hyprland's workspace 4, silently. MXM_VM_HEADLESS=1 runs it with no window;
-# MXM_VM_MEMORY (8G) and MXM_VM_CPUS (8) size it. SSH reaches the VM at this machine's
+# The window opens on Hyprland's workspace 5, silently and fullscreen. MXM_VM_HEADLESS=1 runs it with no window;
+# MXM_VM_MEMORY (8G), MXM_VM_CPUS (8) and MXM_VM_SCREEN (2560x1440) size it. SSH reaches the VM at this machine's
 # 127.0.0.1:2223 alone, with the VM's own key in state/ssh/, made by `build`. The account is `mxm`,
 # password `mxm`, logged on to GNOME by itself.
 set -euo pipefail
@@ -36,10 +36,13 @@ RELEASE="${MXM_VM_UBUNTU:-noble}"
 IMAGES="https://cloud-images.ubuntu.com/$RELEASE/current"
 MEMORY="${MXM_VM_MEMORY:-8G}"
 CPUS="${MXM_VM_CPUS:-8}"
-# The screen QEMU gives the VM at first; GNOME then follows the size of QEMU's window, so `click`
-# measures the screen each time.
-SCREEN_W=1280
-SCREEN_H=800
+# The screen QEMU gives the VM at first, the size of its fullscreen window on this machine's monitor
+# (MXM_VM_SCREEN, the Windows VM's too, so a plugin's editor opens at one size in both: the platform
+# check, 2026-11-18). GNOME may follow a later change of QEMU's window, so `click` measures the
+# screen each time.
+SCREEN="${MXM_VM_SCREEN:-2560x1440}"
+SCREEN_W="${SCREEN%x*}"
+SCREEN_H="${SCREEN#*x}"
 
 die() { echo "vm.sh: $*" >&2; exit 1; }
 
@@ -57,10 +60,26 @@ qemu_args() {
         -monitor "unix:$MONITOR,server,nowait"
         -qmp "unix:$QMP,server,nowait"
         -pidfile "$PIDFILE")
-    if [[ "${MXM_VM_HEADLESS:-0}" == 1 ]]; then ARGS+=(-display none); else ARGS+=(-display gtk,zoom-to-fit=on); fi
+    if [[ "${MXM_VM_HEADLESS:-0}" == 1 ]]; then ARGS+=(-display none); else ARGS+=(-display gtk,zoom-to-fit=on,show-menubar=off); fi
 }
 
-# Starts QEMU, on workspace 4 under Hyprland, and returns once it runs.
+# QEMU's window fullscreen once it shows, so the VM's screen is the monitor's, the same every run.
+fullscreen() {
+    local address
+    for _ in $(seq 100); do
+        address="$(hyprctl clients -j | python3 -c 'import json, sys
+print(next((c["address"] for c in json.load(sys.stdin) if c["title"] == "QEMU (MXM-Linux-VM)"), ""))')"
+        if [[ -n "$address" ]]; then
+            hyprctl dispatch "hl.dsp.window.fullscreen({ window = \"address:$address\" })" >/dev/null
+            return
+        fi
+        sleep 0.2
+    done
+}
+
+# Starts QEMU, fullscreen on workspace 5 under Hyprland, and returns once it runs. Each VM has a
+# workspace of its own, 5 the Linux VM's and 6 Windows' (the owner, 2026-11-18: "You can put the VMs
+# on different workspaces and go fullscren if that is any help. 5 and 6 are not used").
 launch() {
     rm -f "$PIDFILE" "$MONITOR" "$QMP"
     for arg in "${ARGS[@]}"; do [[ "$arg" != *[[:space:]\"\']* ]] || die "an argument with a space or a quote: $arg"; done
@@ -71,7 +90,8 @@ launch() {
         export HYPRLAND_INSTANCE_SIGNATURE
     fi
     if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && command -v hyprctl >/dev/null && [[ "${MXM_VM_HEADLESS:-0}" != 1 ]]; then
-        hyprctl dispatch "hl.dsp.exec_cmd(\"${ARGS[*]}\", { workspace = \"4 silent\" })" >/dev/null
+        hyprctl dispatch "hl.dsp.exec_cmd(\"${ARGS[*]}\", { workspace = \"5 silent\" })" >/dev/null
+        fullscreen &
     else
         "${ARGS[@]}" >"$STATE/qemu.log" 2>&1 &
     fi
@@ -188,7 +208,7 @@ run() {
     running && die "the VM is running already"
     qemu_args
     launch
-    echo "the VM runs (QEMU's window on workspace 4); \`vm.sh stop\` shuts it down"
+    echo "the VM runs (QEMU's window fullscreen on workspace 5); \`vm.sh stop\` shuts it down"
 }
 
 stop() {

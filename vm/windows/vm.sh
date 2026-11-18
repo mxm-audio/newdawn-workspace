@@ -13,8 +13,8 @@
 #   vm.sh copy <path>... <dest>   copies files or folders into the VM (dest a Windows path).
 #   vm.sh desktop <command> starts a program on the VM's desktop (SSH's own commands have none).
 #
-# The window opens on Hyprland's workspace 4, silently. MXM_VM_HEADLESS=1 runs it with no window;
-# MXM_VM_MEMORY (8G) and MXM_VM_CPUS (8) size it. SSH reaches the VM at this machine's
+# The window opens on Hyprland's workspace 6, silently and fullscreen. MXM_VM_HEADLESS=1 runs it with no window;
+# MXM_VM_MEMORY (8G), MXM_VM_CPUS (8) and MXM_VM_SCREEN (2560x1440) size it. SSH reaches the VM at this machine's
 # 127.0.0.1:2222 alone, with the VM's own key in state/ssh/, made by `build`.
 set -euo pipefail
 
@@ -38,6 +38,12 @@ CODE=/usr/share/edk2/x64/OVMF_CODE.4m.fd
 VARS_TEMPLATE=/usr/share/edk2/x64/OVMF_VARS.4m.fd
 MEMORY="${MXM_VM_MEMORY:-8G}"
 CPUS="${MXM_VM_CPUS:-8}"
+# The screen Windows starts with: the firmware takes VGA's preferred size, and Windows' basic display
+# driver keeps the firmware's mode. At the clean install's 1280x800 a plugin's editor opened shorter
+# than on the other platforms and laid itself out otherwise (the platform check, 2026-11-18); at
+# 2560x1440 it opens as on the Linux VM, which takes its fullscreen window's size, this machine's
+# monitor's.
+SCREEN="${MXM_VM_SCREEN:-2560x1440}"
 
 die() { echo "vm.sh: $*" >&2; exit 1; }
 
@@ -69,14 +75,30 @@ qemu_args() {
         -drive "file=$DISK,if=none,id=disk,format=qcow2,discard=unmap" -device ide-hd,drive=disk,bus=ide.0,bootindex=1
         -device qemu-xhci -device usb-tablet
         -nic "user,model=e1000e,hostfwd=tcp:127.0.0.1:$SSH_PORT-:22"
-        -vga std
+        -vga none -device "VGA,xres=${SCREEN%x*},yres=${SCREEN#*x}"
         -audiodev pipewire,id=snd -device ich9-intel-hda -device hda-output,audiodev=snd
         -monitor "unix:$MONITOR,server,nowait"
         -pidfile "$PIDFILE")
-    if [[ "${MXM_VM_HEADLESS:-0}" == 1 ]]; then ARGS+=(-display none); else ARGS+=(-display gtk,zoom-to-fit=on); fi
+    if [[ "${MXM_VM_HEADLESS:-0}" == 1 ]]; then ARGS+=(-display none); else ARGS+=(-display gtk,zoom-to-fit=on,show-menubar=off); fi
 }
 
-# Starts QEMU, on workspace 4 under Hyprland, and returns once it runs.
+# QEMU's window fullscreen once it shows, so the VM's screen is the monitor's, the same every run.
+fullscreen() {
+    local address
+    for _ in $(seq 100); do
+        address="$(hyprctl clients -j | python3 -c 'import json, sys
+print(next((c["address"] for c in json.load(sys.stdin) if c["title"] == "QEMU (MXM-Windows-VM)"), ""))')"
+        if [[ -n "$address" ]]; then
+            hyprctl dispatch "hl.dsp.window.fullscreen({ window = \"address:$address\" })" >/dev/null
+            return
+        fi
+        sleep 0.2
+    done
+}
+
+# Starts QEMU, fullscreen on workspace 6 under Hyprland, and returns once it runs. Each VM has a
+# workspace of its own, 5 the Linux VM's and 6 Windows' (the owner, 2026-11-18: "You can put the VMs
+# on different workspaces and go fullscren if that is any help. 5 and 6 are not used").
 launch() {
     rm -f "$PIDFILE" "$MONITOR"
     for arg in "${ARGS[@]}"; do [[ "$arg" != *[[:space:]\"\']* ]] || die "an argument with a space or a quote: $arg"; done
@@ -87,7 +109,8 @@ launch() {
         export HYPRLAND_INSTANCE_SIGNATURE
     fi
     if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && command -v hyprctl >/dev/null && [[ "${MXM_VM_HEADLESS:-0}" != 1 ]]; then
-        hyprctl dispatch "hl.dsp.exec_cmd(\"${ARGS[*]}\", { workspace = \"4 silent\" })" >/dev/null
+        hyprctl dispatch "hl.dsp.exec_cmd(\"${ARGS[*]}\", { workspace = \"6 silent\" })" >/dev/null
+        fullscreen &
     else
         "${ARGS[@]}" >"$STATE/qemu.log" 2>&1 &
     fi
@@ -143,7 +166,7 @@ run() {
     start_tpm
     qemu_args
     launch
-    echo "the VM runs (QEMU's window on workspace 4); shut Windows down to stop it"
+    echo "the VM runs (QEMU's window fullscreen on workspace 6); shut Windows down to stop it"
 }
 
 stop() {

@@ -10,6 +10,8 @@
 #   mac.sh type <text>        typed text
 #   mac.sh key <keys>…        keys, as `mxm-input key` names them (return, cmd+shift+g …)
 #   mac.sh front              the app in front
+#   mac.sh windows <pid>      a process's windows on screen (id, x, y, width, height, title)
+#   mac.sh raise <pid> <title>  that window in front, its app frontmost
 #
 # A screenshot holds whatever is on the owner's screen: take one for a test, crop what the test
 # needs, delete the rest.
@@ -47,6 +49,14 @@ case "${1:-}" in
         ;;
     front)
         ssh "$HOST" 'lsappinfo info -only name "$(lsappinfo front)"'
+        ;;
+    windows)
+        (( $# == 2 )) || die "windows needs a pid"
+        ssh "$HOST" "$INPUT windows $2"
+        ;;
+    raise)
+        (( $# == 3 )) || die "raise needs a pid and a window title"
+        ssh "$HOST" "$INPUT raise $2 $(printf '%q' "$(printf '%q' "$3")")"
         ;;
     *)
         awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 2 ;;

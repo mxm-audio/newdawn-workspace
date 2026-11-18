@@ -8,6 +8,13 @@
 //   mxm-input type <text>        the text, as typed
 //   mxm-input key <name>         one key, with modifiers: return, tab, escape, space, delete, up,
 //                                down, left, right, or a letter; cmd+q, shift+tab, cmd+shift+g …
+//   mxm-input windows <pid>      the process's windows on screen, one per line: id, x, y, width,
+//                                height (points) and title, tab-separated (titles need Screen
+//                                Recording)
+//   mxm-input raise <pid> <title>  that process's window of that title in front, its app frontmost
+//                                (Accessibility): for `screencapture -R` of just its rectangle,
+//                                since neither `screencapture -l` nor ScreenCaptureKit may capture one
+//                                window over SSH (2026-11-18)
 //
 // Coordinates are pixels as `screencapture` takes them; macOS places events in points, so they are
 // divided by the main display's scale (2 on a Retina screen).
@@ -102,6 +109,34 @@ case "type" where args.count == 2:
     type(args[1])
 case "key" where args.count == 2:
     key(args[1])
+case "windows" where args.count == 2:
+    guard let pid = Int(args[1]) else { fail("mxm-input: a pid is a number") }
+    let listed = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+    for window in (listed as? [[String: Any]]) ?? [] {
+        guard (window[kCGWindowOwnerPID as String] as? Int) == pid,
+              (window[kCGWindowLayer as String] as? Int) == 0,
+              let id = window[kCGWindowNumber as String] as? Int,
+              let bounds = window[kCGWindowBounds as String] as? [String: Double] else { continue }
+        let title = (window[kCGWindowName as String] as? String) ?? ""
+        let values = ["X", "Y", "Width", "Height"].map { String(Int(bounds[$0] ?? 0)) }
+        print(([String(id)] + values + [title]).joined(separator: "\t"))
+    }
+case "raise" where args.count == 3:
+    guard let pid = pid_t(args[1]) else { fail("mxm-input: a pid is a number") }
+    let app = AXUIElementCreateApplication(pid)
+    var listed: CFTypeRef?
+    AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &listed)
+    var raised = false
+    for window in (listed as? [AXUIElement]) ?? [] {
+        var title: CFTypeRef?
+        AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &title)
+        if (title as? String) == args[2] {
+            AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+            raised = true
+        }
+    }
+    AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+    if !raised { fail("mxm-input: no window titled \(args[2])") }
 default:
-    fail("usage: mxm-input check | click <x> <y> | move <x> <y> | type <text> | key <name>")
+    fail("usage: mxm-input check | click <x> <y> | move <x> <y> | type <text> | key <name> | windows <pid> | raise <pid> <title>")
 }

@@ -49,7 +49,7 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `ops/` | The owner's notes (`notes/todo.md`, `notes/synths.md`) and the split, publishing and move scripts | `mxm-audio/newdawn-ops`, private |
 | `wsl/` | The Linux build environments (WSL) and their scripts | this workspace |
 | `vm/` | The test VMs on Linux (QEMU and KVM), each built by one script: Windows 11 (Microsoft's 90-day evaluation) and Ubuntu 24.04 with GNOME (2026-11-18) | this workspace |
-| `collection-tests/` | Tests across every product, waiting for this workspace's test package | this workspace |
+| `collection-tests/` | Tests across every product: `platform-check/`, every plugin played and looked at in MXM Player on Linux, Windows and macOS from the release archives, only what a change reaches (2026-11-18) | this workspace |
 | `research/` | The research behind the products: the documents read, the recordings the models are fitted to, and what may cross into a public repository; cited as `research:<path>`, never a build dependency. Copyrighted material in it is saved locally only, never committed (the owner, 2026-10-13: "The rule is that copyrighted research material is only saved locally"). Out of `archive/` since 2026-10-13 | `maxmcorp/mxm-collection-research`, private |
 | `archive/` | The monorepo (archived on GitHub 2026-10-07; its worktrees' work is on `archive/*` branches); read-only | private |
 | `projects/` | The owner's song projects | not in git |
@@ -157,6 +157,11 @@ folder, and its docs must not send a contributor here.
   the conversation: put `MXM_GATE_OK='<their words>'` in the command. A release is the exception:
   it passes the full gates of `plan-v1-release.md` §3 (the owner, 2026-10-25: "Everything should
   be stable and tested").
+- **The platform check runs before a release only** (the owner, 2026-11-18: "And these tests should
+  only be done before a release"): `collection-tests/platform-check`, every plugin played and looked
+  at in MXM Player on Linux, Windows and macOS from the release archives, and of those only the cases
+  the release's changes reach ("If you change a library that multiple plugins are using you should
+  test those it regards").
 - **Bit-exact pins are Windows'.** Golden digests and recorded renders hold Windows' bits, because
   each platform's maths library rounds differently. Elsewhere a test compares within rounding or
   skips the pin (the owner, 2026-10-06). So the work on Linux checks within rounding, and the bits
@@ -257,4 +262,5 @@ folder, and its docs must not send a contributor here.
 | `apps/mxm-tutti-converter/AGENTS.md` | MXM tutti Converter: watching folders and converting through tutti's formats; the plan is ops' `plans/plan-tutti-converter.md` |
 | `wsl/AGENTS.md` | The Linux distros, and how to run a repository's checks in them |
 | `vm/AGENTS.md` | The Windows and Linux test VMs: building them, resetting them to their clean install, serving files to them, driving their desktops |
+| `collection-tests/platform-check/AGENTS.md` | The platform check: its cases, sequences, captures, the selection of what a change reaches, and its report |
 | `ops/AGENTS.md` | The split, publishing and move scripts |
