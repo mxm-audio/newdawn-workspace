@@ -133,6 +133,14 @@ are in `AGENTS.md`; this is why they are so.
   pointer. A `.ps1` calling `user32`'s `SetCursorPos` and `mouse_event`, started on the desktop with
   `vm.sh desktop "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File <it> x y"`,
   clicks at screen coordinates (the VM's screen is 1280×800 at 100 %); `screendump` gives them.
+  **Not while a program `vm.sh desktop` started still runs** (2026-11-18): its one task,
+  `mxm-desktop`, is replaced but its running copy keeps it busy, and Windows ignores the second start
+  without a word. Start the click as a task of its own name over `vm.sh ssh` (`schtasks /create /tn
+  mxm-click /tr '<the powershell line>' /sc once /st 00:00 /it /f; schtasks /run /tn mxm-click`),
+  and give PowerShell a few seconds to compile its `Add-Type`.
+- **A windowed program over SSH** (the portal is one): PowerShell doesn't wait for it, and the SSH
+  session's end kills it before it is done; pipe it (`… | Out-String`) to wait and to see what it
+  prints (2026-11-18).
 - **Updates at shutdown**: an hour after a reset Windows Update had downloaded updates, and a
   shutdown stopped to install them ("updates are under way"). `vm.sh reset` now switches the VM off
   instead (nothing in it is kept), `vm.sh stop` shuts it down properly, and the answer file turns
