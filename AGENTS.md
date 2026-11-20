@@ -202,10 +202,10 @@ folder, and its docs must not send a contributor here.
 - **Every plugin is a CLAP and a VST3; no Linux-only format and no AAX** (the owner, 2026-10-16: "If
   anybody wants the linux specific ones they can make it themselves"). The rules are mxm-kit's
   `docs/plugin-conventions.md` (*Every plugin is a CLAP and a VST3*).
-- **Version 1.0 of the MXM collection is the focus** (the owner, 2026-10-25: "I need version 1 of
-  the project to be published"): the 25 plugins, MXM Player, mxm-tools and tutti, every one through
-  every gate; newDAWn, the web tracker and the tutti converter come after it. The plan is ops'
-  `plans/plan-v1-release.md`.
+- **Version 1.0 of the MXM collection is in beta, and counts as done** (the owner, 2026-11-20: "V1.0
+  is in beta, so we considder it done"): the 25 plugins, MXM Player, mxm-tools and tutti, with the
+  beta testers through the portal. The work goes on in newDAWn, the web tracker and the tutti
+  converter; the release itself follows ops' `plans/plan-v1-release.md`.
 - **Until 1.0 nothing is released** (the owner, 2026-10-06: "We are still in pre alpha and are not
   releasing anything to anybody. No really."): no builds go to anyone but the beta testers, through
   the portal and its beta key (the owner, 2026-11-17: "I really need som beta testers"), and the only tags are a
