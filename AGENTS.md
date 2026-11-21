@@ -184,7 +184,9 @@ folder, and its docs must not send a contributor here.
   until explained**; a number the listener ranks low can hide it (the marimba's first sheets found
   nine models 5–15 cents off pitch). A tool prints each picture as `LOOK: <path>`; the hook
   `~/.claude/hooks/look_before_reporting.py` puts the unread ones in the agent's context and holds
-  the turn's end once until each is read.
+  the turn's end once until each is read. A model built from recordings is measured against them
+  too, with mxm-twf-synth's `tools/measure.py`, its report listed and held the same way (the owner,
+  2026-11-21: "Make sure that the tool gets used and not forgotten").
 - **One keyboard language, newDAWn's, in the DAW and every MXM editor** (the owner, 2026-10-06 to
   2026-10-08). The editors read it through mxm-kit's cursor (`mxm_ui::navigation`, engine
   `mxm-keys`), and **one keymap file**: the keymap in use is the one chosen in the folder they all
