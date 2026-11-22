@@ -36,10 +36,10 @@ true in all of them. Each repository has its own `AGENTS.md` chain: read that ne
 | `kit/nice-plug/`, `kit/nice-plug-egui/`, `kit/egui-baseview/`, `kit/baseview/` | Forks: upstream plus each `PATCHES.md`; baseview's (2026-10-07) draws Windows frames a busy host cannot starve; nice-plug-egui's (2026-10-16) lets an editor keep only the keys it uses, the rest going to the host | `mxm-audio`, ISC and MIT/Apache |
 | `libs/mxm-macro-osc/` | Plaits' voice and its 24 engines, ported to Rust from Emilie Gillet's MIT code and bit identical to her C++; split from mxm-thanks-eg, public (the owner, 2026-11-05: "since it is done we might as well make it public") | `mxm-audio/mxm-macro-osc`, MIT |
 | `libs/mxm-modal-voice/` | Elements' modal voice, its exciters, resonators, reverb and hidden voice, ported to Rust from Emilie Gillet's MIT code and bit identical to her C++ (the owner, 2026-11-05: "And a free rust crate too"); public, with MXM Modal Synth (the owner, 2026-11-05: "publish this synth too") | `mxm-audio/mxm-modal-voice`, MIT |
-| `libs/mxm-twf-voice/` | The drums' TWF voice (Targeted Wavetable Filtering), lifted with its history out of mxm-model-drums (the owner, 2026-11-09: "It is ok to make some crates for shared code if there is any"; its name and its private home the owner's). mxm-twf-synth played it too until 2026-11-10, then took a copy of its own, so keyboard work no longer has to be proved harmless to the drums (the owner: "perhaps make a split in the code?"). **No consumer pays for another's features, in sound or in CPU**, should it have two again | `mxm-audio/mxm-twf-voice`, GPL-3.0, private |
+| `libs/mxm-twf-voice/` | The drums' TWF voice (Targeted Wavetable Filtering), lifted with its history out of mxm-model-drums (the owner, 2026-11-09: "It is ok to make some crates for shared code if there is any"; its name the owner's; public since 2026-11-22, with mxm-model-drums). mxm-twf-synth played it too until 2026-11-10, then took a copy of its own, so keyboard work no longer has to be proved harmless to the drums (the owner: "perhaps make a split in the code?"). **No consumer pays for another's features, in sound or in CPU**, should it have two again | `mxm-audio/mxm-twf-voice`, GPL-3.0 |
 | `player/mxm-player/` | MXM Player, the CLAP host the plugins' host tests run in, and in version 1.0 a standalone host (2026-10-25); no new features, player work goes into newDAWn (2026-10-07), but for VST3 hosting, through mxm-kit's `mxm-vst3-host` as in newDAWn (2026-10-09), and tutti projects, its setup saved and opened in the format newDAWn uses (2026-10-21) | `mxm-audio/mxm-player`, GPL-3.0 |
 | `format/tutti/` | tutti, the open audio project format (the owner, 2026-10-20): its spec, schema, examples, docs and reference crates; newDAWn is its first consumer, MXM Player its first in version 1.0 (2026-10-25). No file IO in the core, so it builds for the web too | `mxm-audio/tutti`, MIT |
-| `instruments/<name>/` (15), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-model-drums` (2026-10-06), `mxm-chaos-drums` (2026-11-02), `mxm-thanks-eg` (2026-11-04) and `mxm-twf-synth` (2026-11-09) private until they are ready; `mxm-fx-eq-n` public since 2026-10-16, `mxm-modal-synth` since 2026-11-05 |
+| `instruments/<name>/` (15), `effects/<name>/` (11) | One repository per product | `mxm-audio/<name>`, GPL-3.0; `mxm-twf-synth` (2026-11-09) private until it is ready; `mxm-fx-eq-n` public since 2026-10-16, `mxm-modal-synth` since 2026-11-05, `mxm-model-drums`, `mxm-chaos-drums` and `mxm-thanks-eg` since 2026-11-22, out to the beta testers |
 | `tools/mxm-tools/` | The listener, room simulator and measurement harnesses; in version 1.0 (2026-10-25) | `mxm-audio/mxm-tools`, GPL-3.0 |
 | `apps/mxm-tracker/` | MXM Tracker, the web tracker: newDAWn's tracker on a phone, in step with it, its songs tutti projects; mainly a trial run of the format (the owner, 2026-10-21); after version 1.0 | `mxm-audio/mxm-tracker`, GPL-3.0, private until it is ready |
 | `apps/mxm-tutti-converter/` | MXM tutti Converter: watches folders and converts the projects in them into tutti, like a video proxy generator; Polyend Tracker projects first, any format both ways after, the formats' code in tutti (the owner, 2026-11-03); after version 1.0 | `mxm-audio/mxm-tutti-converter`, GPL-3.0, private until it is ready |
@@ -200,7 +200,9 @@ folder, and its docs must not send a contributor here.
   `PluginEntry::load` directly:
   Rust plugins leave per-thread destructors behind, and glibc 2.39 crashes on them at thread exit.
 - **Publishing needs the owner.** Creating a repository, pushing a tag or pushing to a public
-  `main` is outward-facing: ask first.
+  `main` is outward-facing: ask first. **A product out to the beta testers has its repository
+  public, and every library it builds on** (the owner, 2026-11-22: "If they are out in beta, their
+  repos should also be published"), as a public repository must build from a fresh clone.
 - **Every plugin is a CLAP and a VST3; no Linux-only format and no AAX** (the owner, 2026-10-16: "If
   anybody wants the linux specific ones they can make it themselves"). The rules are mxm-kit's
   `docs/plugin-conventions.md` (*Every plugin is a CLAP and a VST3*).
@@ -217,8 +219,8 @@ folder, and its docs must not send a contributor here.
   released version stays installable**, for old tracks (the owner, 2026-10-25: "we dont releease
   anything that break minor versions. and older versions should be installable via the portal so
   you can work on old tracks it you want to"). `repos.txt` records `public` or `private` for each repository; the private ones are
-  `newdawn`, `mxm-model-drums`, `mxm-chaos-drums`, `mxm-thanks-eg`, `mxm-twf-synth`, `mxm-twf-voice`,
-  `mxm-tracker`, `mxm-tutti-converter` and `mxm-vocal-coach` (private until they are ready) and `ops`.
+  `newdawn`, `mxm-twf-synth`, `mxm-tracker`, `mxm-tutti-converter` and `mxm-vocal-coach` (private
+  until they are ready), and `mxm-portal` and `ops` (never public).
 - **Licences.** The products are GPL-3.0-or-later and the kit is MIT. "MXM" is the owner's trademark
   (`TRADEMARKS.md` in each product), and contributions go through the CLA.
 

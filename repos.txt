@@ -9,14 +9,14 @@ kit/nice-plug https://github.com/mxm-audio/nice-plug.git public
 kit/nice-plug-egui https://github.com/mxm-audio/nice-plug-egui.git public
 libs/mxm-macro-osc https://github.com/mxm-audio/mxm-macro-osc.git public  # the Plaits port, bit for bit (the owner, 2026-11-05)
 libs/mxm-modal-voice https://github.com/mxm-audio/mxm-modal-voice.git public  # the Elements port, bit for bit (the owner, 2026-11-05)
-libs/mxm-twf-voice https://github.com/mxm-audio/mxm-twf-voice.git private  # the TWF voice, shared by mxm-model-drums and mxm-twf-synth (the owner, 2026-11-09)
+libs/mxm-twf-voice https://github.com/mxm-audio/mxm-twf-voice.git public  # the TWF voice of mxm-model-drums (the owner, 2026-11-09); public with it (2026-11-22)
 player/mxm-player https://github.com/mxm-audio/mxm-player.git public
 format/tutti https://github.com/mxm-audio/tutti.git public  # the open audio project format (the owner, 2026-10-20)
 instruments/mxm-creative-sampler https://github.com/mxm-audio/mxm-creative-sampler.git public
-instruments/mxm-chaos-drums https://github.com/mxm-audio/mxm-chaos-drums.git private  # private until it is ready (the owner, 2026-11-02)
+instruments/mxm-chaos-drums https://github.com/mxm-audio/mxm-chaos-drums.git public  # public once out to the beta testers (the owner, 2026-11-22)
 instruments/mxm-drum-machine https://github.com/mxm-audio/mxm-drum-machine.git public
 instruments/mxm-modal-synth https://github.com/mxm-audio/mxm-modal-synth.git public  # public (the owner, 2026-11-05: "publish this synth too")
-instruments/mxm-model-drums https://github.com/mxm-audio/mxm-model-drums.git private  # private until it is ready (the owner, 2026-10-06)
+instruments/mxm-model-drums https://github.com/mxm-audio/mxm-model-drums.git public  # public once out to the beta testers (the owner, 2026-11-22)
 instruments/mxm-mono-00 https://github.com/mxm-audio/mxm-mono-00.git public
 instruments/mxm-mono-01 https://github.com/mxm-audio/mxm-mono-01.git public
 instruments/mxm-mono-02 https://github.com/mxm-audio/mxm-mono-02.git public
@@ -25,7 +25,7 @@ instruments/mxm-mono-08 https://github.com/mxm-audio/mxm-mono-08.git public
 instruments/mxm-mono-pr1 https://github.com/mxm-audio/mxm-mono-pr1.git public
 instruments/mxm-para-07 https://github.com/mxm-audio/mxm-para-07.git public
 instruments/mxm-poly-06 https://github.com/mxm-audio/mxm-poly-06.git public
-instruments/mxm-thanks-eg https://github.com/mxm-audio/mxm-thanks-eg.git private  # private until it is ready (the owner, 2026-11-04)
+instruments/mxm-thanks-eg https://github.com/mxm-audio/mxm-thanks-eg.git public  # public once out to the beta testers (the owner, 2026-11-22)
 instruments/mxm-twf-synth https://github.com/mxm-audio/mxm-twf-synth.git private  # struck and plucked instruments on TWF; private until it is ready (the owner, 2026-11-09: "mxm-twf-synth is the name")
 effects/mxm-bucket-delay https://github.com/mxm-audio/mxm-bucket-delay.git public
 effects/mxm-chorus-06 https://github.com/mxm-audio/mxm-chorus-06.git public
