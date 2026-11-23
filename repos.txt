@@ -37,6 +37,7 @@ effects/mxm-fx-curve https://github.com/mxm-audio/mxm-fx-curve.git public
 effects/mxm-fx-delay https://github.com/mxm-audio/mxm-fx-delay.git public
 effects/mxm-fx-eq-n https://github.com/mxm-audio/mxm-fx-eq-n.git public
 effects/mxm-fx-oldify https://github.com/mxm-audio/mxm-fx-oldify.git public
+effects/mxm-fx-pitch https://github.com/mxm-audio/mxm-fx-pitch.git private  # newDAWn's Pitch correction as a CLAP and VST3, Studio through ARA; private until it is ready, as it takes newDAWn's private crates (the owner, 2026-11-23: "Now lets implement it as a standalone plugin too. With ARA support for the studio mode.")
 effects/mxm-grain-fx https://github.com/mxm-audio/mxm-grain-fx.git public
 effects/mxm-shimmer https://github.com/mxm-audio/mxm-shimmer.git public
 tools/mxm-tools https://github.com/mxm-audio/mxm-tools.git public
