@@ -16,7 +16,8 @@ portal, the plugins and MXM Player on.
 - `windows/vm.sh` (`build`, `run`, `stop`, `reset`, `serve`, `ssh`, `copy`, `desktop`) and
   `windows/autounattend.xml`, the unattended install, are tracked.
 - `mac/mac.sh` and `mac/mxm-input.swift`: the owner's MacBook Air, the macOS build machine, driven
-  over SSH (`ssh mac`, its Bonjour name: its address changes): `screen`, `click`, `move`, `type`,
+  over SSH (`ssh mac`, its Bonjour name: its address changes): `screen`, `click`, `move`, `drag`
+  (pressed, moved in steps, released: a note in a plugin's window, say), `type`,
   `key`, `front`, `windows <pid>` (a process's windows: id, bounds in points, title), `raise <pid>
   <title>` (that window in front, through Accessibility), and `install`, which builds the input
   helper on the Mac. **Over SSH macOS captures the whole screen only**: `screencapture -l` and

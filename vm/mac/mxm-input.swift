@@ -5,6 +5,8 @@
 //   mxm-input check              whether macOS lets it send events; the screen's size and scale
 //   mxm-input click <x> <y>      a left click at a screenshot's pixel coordinates
 //   mxm-input move <x> <y>       the pointer there, no click
+//   mxm-input drag <x> <y> <x2> <y2>  pressed at the first point, moved to the second in steps,
+//                                released there: a note dragged in a plugin's window, say
 //   mxm-input type <text>        the text, as typed
 //   mxm-input key <name>         one key, with modifiers: return, tab, escape, space, delete, up,
 //                                down, left, right, or a letter; cmd+q, shift+tab, cmd+shift+g …
@@ -105,6 +107,20 @@ case "click" where args.count == 3:
     mouse(.leftMouseUp, at)
 case "move" where args.count == 3:
     mouse(.mouseMoved, point(args[1], args[2]))
+case "drag" where args.count == 5:
+    let (from, to) = (point(args[1], args[2]), point(args[3], args[4]))
+    mouse(.mouseMoved, from)
+    usleep(120_000)
+    mouse(.leftMouseDown, from)
+    usleep(150_000)
+    let steps = 20
+    for step in 1...steps {
+        let t = CGFloat(step) / CGFloat(steps)
+        mouse(.leftMouseDragged, CGPoint(x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t))
+        usleep(20_000)
+    }
+    usleep(150_000)
+    mouse(.leftMouseUp, to)
 case "type" where args.count == 2:
     type(args[1])
 case "key" where args.count == 2:
@@ -138,5 +154,5 @@ case "raise" where args.count == 3:
     AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
     if !raised { fail("mxm-input: no window titled \(args[2])") }
 default:
-    fail("usage: mxm-input check | click <x> <y> | move <x> <y> | type <text> | key <name> | windows <pid> | raise <pid> <title>")
+    fail("usage: mxm-input check | click <x> <y> | move <x> <y> | drag <x> <y> <x2> <y2> | type <text> | key <name> | windows <pid> | raise <pid> <title>")
 }

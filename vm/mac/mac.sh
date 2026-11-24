@@ -7,6 +7,7 @@
 #   mac.sh screen <file.png>  the Mac's screen, as a picture here (the Mac's copy deleted)
 #   mac.sh click <x> <y>      a click at the picture's pixel coordinates
 #   mac.sh move <x> <y>       the pointer there
+#   mac.sh drag <x> <y> <x2> <y2>  pressed at the first point, moved to the second, released
 #   mac.sh type <text>        typed text
 #   mac.sh key <keys>…        keys, as `mxm-input key` names them (return, cmd+shift+g …)
 #   mac.sh front              the app in front
@@ -38,6 +39,10 @@ case "${1:-}" in
     click|move)
         (( $# == 3 )) || die "$1 needs x and y"
         ssh "$HOST" "$INPUT $1 $2 $3"
+        ;;
+    drag)
+        (( $# == 5 )) || die "drag needs x, y, x2 and y2"
+        ssh "$HOST" "$INPUT drag $2 $3 $4 $5"
         ;;
     type)
         (( $# == 2 )) || die "type needs one text"
