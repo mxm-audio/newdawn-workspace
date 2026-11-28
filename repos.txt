@@ -32,7 +32,7 @@ effects/mxm-bucket-delay https://github.com/mxm-audio/mxm-bucket-delay.git publi
 effects/mxm-chorus-06 https://github.com/mxm-audio/mxm-chorus-06.git public
 effects/mxm-classic-verb https://github.com/mxm-audio/mxm-classic-verb.git public
 effects/mxm-folded-spring https://github.com/mxm-audio/mxm-folded-spring.git public
-effects/mxm-fx-bucket-verb https://github.com/mxm-audio/mxm-fx-bucket-verb.git private  # an experimental reverb made of two of mxm-bucket-delay's chips; private until it is ready (the owner, 2026-11-25: "yes to all rulings, go ahead")
+effects/mxm-fx-bucket-verb https://github.com/mxm-audio/mxm-fx-bucket-verb.git public  # an experimental reverb made of two of mxm-bucket-delay's chips (the owner, 2026-11-25: "yes to all rulings, go ahead"); public since 2026-11-28 ("make it a public part of the collection")
 effects/mxm-fx-convolution https://github.com/mxm-audio/mxm-fx-convolution.git public
 effects/mxm-fx-curve https://github.com/mxm-audio/mxm-fx-curve.git public
 effects/mxm-fx-delay https://github.com/mxm-audio/mxm-fx-delay.git public
